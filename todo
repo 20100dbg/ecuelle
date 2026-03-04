@@ -9,10 +9,47 @@ Proxy
 - check client capabilities
 
 - sql color syntax : https://github.com/scriptcoded/sql-highlight
+-- format SQL
+-- replace ? with params
+-- delete /**/ comments + trim()
 
-- PostgreSQL and MS SQL support
+
+- DBMS support : PostgreSQL, MS SQL
+-- Redis, MongoDB, SQLite (hook on .so/.dll functions) ?
 
 - TLS support
+
+- mysql PACKET_OK
+-- handle len(payload) > 7
+
+- mysql
+-- test return many rows
+-- test named parameters
+
+- option log
+-- print
+-- write file
+
+- inject arbitrary queries
+-- at any time ?
+-- hijack open connection
+--- send fake close/quit to client and keep talking with server
+
+- display table, columns :
+-- timestamp
+-- IP:port
+-- type : classic / prepared
+-- affected_rows / len(rows)
+-- state (ok / error)
+-- show original / pretty query
+-- actions
+--- ignore query
+---- as is
+---- with these parameters
+--- 
+
+Known bugs :
+- with mysql, classic query, if first field is empty (select ""), response is detected as prepared statement, resulting in crash
 
 
 # postgresql
@@ -21,3 +58,4 @@ https://docs.postgresql.fr/14/protocol.html
 # MSSQL
 # 2025, 2022, 2019, 2017
 docker pull mcr.microsoft.com/mssql/server:2025-latest
+

@@ -1,14 +1,14 @@
 import struct
 from math import ceil
-from flags import *
-from utils import *
+from common import *
+from enum import Enum
 
-class Packet():
 
-    def __init__(self, pkt, conn_state):
+class Mysql():
+
+    def __init__(self, pkt):
         self.pkt = pkt
-        self.conn_state = conn_state
-        self.info = {}
+        self.result = Result()
         self.debug = True
 
         try:
@@ -16,6 +16,12 @@ class Packet():
         except Exception as e:
             print(e)
 
+    #@staticmethod
+    def replace_query(self, new_query):
+        new_query = new_query.encode()
+        query_length = len(new_query) + 1
+        query_length = query_length.to_bytes(3, 'little')
+        return query_length + b"\x00\x16" + new_query
 
     def print_debug(self, txt):
         if self.debug:
@@ -29,68 +35,68 @@ class Packet():
         payload = pkt[4:]
 
         self.packet_type = self.get_packet_type(packet_number, payload_length, payload)
-        #self.print_debug(f"PacketType {packet_type}")
+        #self.print_debug(f"Mysql.PacketType {packet_type}")
 
         # packet is > 16mb
         if payload_length == 16777215:
             pass
 
-        if self.packet_type == PacketType.PACKET_OK:
+        if self.packet_type == Mysql.PacketType.PACKET_OK:
             self.parse_OK(payload)
 
-        elif self.packet_type == PacketType.PACKET_ERR:
+        elif self.packet_type == Mysql.PacketType.PACKET_ERR:
             self.parse_ERR(payload)
 
-        elif self.packet_type == PacketType.PACKET_PREPARE_STATEMENT:
+        elif self.packet_type == Mysql.PacketType.PACKET_PREPARE_STATEMENT:
             query = payload[1:].decode()
-            self.info['query'] = query
+            self.result.query = query
 
-        elif self.packet_type == PacketType.PACKET_EXECUTE_STATEMENT:
+        elif self.packet_type == Mysql.PacketType.PACKET_EXECUTE_STATEMENT:
             self.parse_EXECUTE_STATEMENT(payload)
 
-        elif self.packet_type == PacketType.PACKET_QUERY:
-            query = payload[1:]
-            self.info['query'] = query
+        elif self.packet_type == Mysql.PacketType.PACKET_QUERY:
+            query = payload[1:].decode()
+            self.result.query = query
 
-        elif self.packet_type == PacketType.PACKET_HANDSHAKE:
+        elif self.packet_type == Mysql.PacketType.PACKET_HANDSHAKE:
             self.parse_HANDSHAKE(payload)
     
-        elif self.packet_type == PacketType.PACKET_HANDSHAKE_RESPONSE:
+        elif self.packet_type == Mysql.PacketType.PACKET_HANDSHAKE_RESPONSE:
             self.parse_HANDSHAKE_RESPONSE(payload)
 
-        elif self.packet_type == PacketType.PACKET_TABULAR_RESPONSE:
+        elif self.packet_type == Mysql.PacketType.PACKET_TABULAR_RESPONSE:
             self.parse_TABULAR_RESPONSE(payload)
 
 
     def get_packet_type(self, packet_number, payload_length, payload):
 
         if payload[0] == 0 and len(payload) >= 7:
-            return PacketType.PACKET_OK
+            return Mysql.PacketType.PACKET_OK
         elif payload[0] == 0xfe and len(payload) < 7:
-            return PacketType.PACKET_EOF
+            return Mysql.PacketType.PACKET_EOF
         elif payload[0] == 0xff:
-            return PacketType.PACKET_ERR
+            return Mysql.PacketType.PACKET_ERR
         elif packet_number == 1 and payload_length == 1:
-            return PacketType.PACKET_TABULAR_RESPONSE
+            return Mysql.PacketType.PACKET_TABULAR_RESPONSE
         elif packet_number == 0 and (payload[0] == 0x0a or payload[0] == 0x09):
-            return PacketType.PACKET_HANDSHAKE
+            return Mysql.PacketType.PACKET_HANDSHAKE
         elif packet_number == 1:
-            return PacketType.PACKET_HANDSHAKE_RESPONSE
+            return Mysql.PacketType.PACKET_HANDSHAKE_RESPONSE
         elif packet_number == 2 and payload_length == 2:
-            return PacketType.PACKET_CACHING_SHA2
+            return Mysql.PacketType.PACKET_CACHING_SHA2
         elif packet_number == 0 and payload[0] == 0x03:
-            return PacketType.PACKET_QUERY
+            return Mysql.PacketType.PACKET_QUERY
         elif packet_number == 0 and payload[0] == 0x16:
-            return PacketType.PACKET_PREPARE_STATEMENT
+            return Mysql.PacketType.PACKET_PREPARE_STATEMENT
         elif packet_number == 0 and payload[0] == 0x17:
-            return PacketType.PACKET_EXECUTE_STATEMENT
+            return Mysql.PacketType.PACKET_EXECUTE_STATEMENT
         elif packet_number == 0 and payload[0] == 0x19:
-            return PacketType.PACKET_CLOSE
+            return Mysql.PacketType.PACKET_CLOSE
         elif packet_number == 0 and payload[0] == 0x01:
-            return PacketType.PACKET_QUIT
+            return Mysql.PacketType.PACKET_QUIT
         else:
             self.print_debug(f"UNKNOWN PACKET")
-            return PacketType.UNKNOWN
+            return Mysql.PacketType.UNKNOWN
 
     def parse_EXECUTE_STATEMENT(self, payload):
         
@@ -119,22 +125,25 @@ class Packet():
                 parameters.append(parameter)
                 idx += 1 + parameter_length
 
-            self.info['parameters'] = parameters
+            self.result.parameters = parameters
 
     def parse_OK(self, payload):
         response_code = payload[0]
         
         if len(payload) == 7:
-            self.info['affected_rows'] = payload[1]
-            self.info['server_status'] = int.from_bytes(payload[3:4], "little")
-            self.info['warnings'] = int.from_bytes(payload[5:6], "little")
-        else:
-            pass
+            self.result.affected_rows = payload[1]
+            server_status = int.from_bytes(payload[3:4], "little")
+            warnings = int.from_bytes(payload[5:6], "little")
+
+            self.result.info = {'server_status': server_status, 'warnings': warnings}
+
 
     def parse_ERR(self, payload):
-        self.info['error_code'] = int.from_bytes(payload[1:3], "little")
-        self.info['sql_state'] = payload[4:9].decode()
-        self.info['error_message'] = payload[9:].decode()
+        error_code = int.from_bytes(payload[1:3], "little")
+        sql_state = payload[4:9].decode()
+        error_message = payload[9:].decode()
+
+        self.result.error = {'error_code': error_code, 'sql_state': sql_state, 'error_message': error_message}
 
     def parse_HANDSHAKE(self, payload):
         version = payload[0]
@@ -153,23 +162,21 @@ class Packet():
             auth_plugin_name = ""
             self.server_capabilities = int.from_bytes(cap1+cap2, "little")
 
-            if self.check_capability(self.server_capabilities, Capability.CLIENT_PLUGIN_AUTH.value):
+            if self.check_capability(self.server_capabilities, Mysql.Capability.CLIENT_PLUGIN_AUTH.value):
                 auth_plugin_data_len = payload[idx+21]
             
             salt_length = max(13, auth_plugin_data_len-8)-1
             salt2 = payload[idx+32:idx+32+salt_length]
             salt = salt1 + salt2
             
-            if self.check_capability(self.server_capabilities, Capability.CLIENT_PLUGIN_AUTH.value):
+            if self.check_capability(self.server_capabilities, Mysql.Capability.CLIENT_PLUGIN_AUTH.value):
                 auth_plugin_name = payload[idx+33+salt_length:-1]
 
 
         elif version == 9:
             salt = payload[idx+5:]
 
-        self.info['server_version'] = server_version
-        self.info['thread_id'] = thread_id
-        self.info['salt'] = salt.hex()
+        self.result.info = {'server_version': server_version, 'thread_id': thread_id, 'salt': salt.hex()}
 
 
     def parse_HANDSHAKE_RESPONSE(self, payload):
@@ -180,14 +187,12 @@ class Packet():
         character_set = payload[8]
         #23 reserved
         idx = payload.find(0, 32)
-        username = payload[32:idx]
+        username = payload[32:idx].decode()
         password = payload[idx+2:idx+34]
         idx2 = payload.find(0, idx+34)
-        schema = payload[idx+34:idx2]
+        schema = payload[idx+34:idx2].decode()
         
-        self.info['username'] = username
-        self.info['schema'] = schema
-        self.info['password'] = Utils.to_hex(password)
+        self.result.info = {'username': username, 'schema': schema, 'password': password.hex()}
 
     def parse_TABULAR_RESPONSE(self, payload):
         
@@ -245,6 +250,8 @@ class Packet():
 
             row = []
 
+            print(f"{payload[idx:].hex()}")
+
             packet_length = int.from_bytes(payload[idx:idx+3], "little")
             packet_number = payload[idx+3]
             response_code = payload[idx+4]
@@ -293,40 +300,40 @@ class Packet():
                         row.append(None)
                         continue
 
-                    if fields[i]['type'] == FieldType.FIELD_TYPE_TINY.value:
+                    if fields[i]['type'] == Mysql.FieldType.FIELD_TYPE_TINY.value:
                         field_length = 1
                         row.append(payload[idx])
 
-                    elif fields[i]['type'] == FieldType.FIELD_TYPE_SHORT.value:
+                    elif fields[i]['type'] == Mysql.FieldType.FIELD_TYPE_SHORT.value:
                         field_length = 2
                         row.append(int.from_bytes(payload[idx:idx+field_length], "little"))
                     
-                    elif fields[i]['type'] == FieldType.FIELD_TYPE_LONG.value:
+                    elif fields[i]['type'] == Mysql.FieldType.FIELD_TYPE_LONG.value:
                         field_length = 4
                         row.append(int.from_bytes(payload[idx:idx+field_length], "little"))
 
-                    elif fields[i]['type'] == FieldType.FIELD_TYPE_INT24.value:
+                    elif fields[i]['type'] == Mysql.FieldType.FIELD_TYPE_INT24.value:
                         field_length = 4
                         row.append(int.from_bytes(payload[idx:idx+field_length], "little"))
 
-                    elif fields[i]['type'] == FieldType.FIELD_TYPE_LONGLONG.value:
+                    elif fields[i]['type'] == Mysql.FieldType.FIELD_TYPE_LONGLONG.value:
                         field_length = 8
                         row.append(int.from_bytes(payload[idx:idx+field_length], "little"))
 
-                    elif fields[i]['type'] == FieldType.FIELD_TYPE_NEWDECIMAL.value:
+                    elif fields[i]['type'] == Mysql.FieldType.FIELD_TYPE_NEWDECIMAL.value:
                         field_length = payload[idx]
                         idx += 1
                         row.append(payload[idx:idx+field_length].decode())
 
-                    elif fields[i]['type'] == FieldType.FIELD_TYPE_FLOAT.value:
+                    elif fields[i]['type'] == Mysql.FieldType.FIELD_TYPE_FLOAT.value:
                         field_length = 4
                         row.append(struct.unpack("<f",payload[idx:idx+field_length])[0])
 
-                    elif fields[i]['type'] == FieldType.FIELD_TYPE_DOUBLE.value:
+                    elif fields[i]['type'] == Mysql.FieldType.FIELD_TYPE_DOUBLE.value:
                         field_length = 8
                         row.append(struct.unpack("<d",payload[idx:idx+field_length])[0])
 
-                    elif fields[i]['type'] == FieldType.FIELD_TYPE_DATE.value:
+                    elif fields[i]['type'] == Mysql.FieldType.FIELD_TYPE_DATE.value:
                         field_length = payload[idx]
                         idx += 1
                         year = int.from_bytes(payload[idx:idx+2], "little")
@@ -334,7 +341,7 @@ class Packet():
                         day = payload[idx+3]
                         row.append(f"{year}-{month}-{day}")
 
-                    elif fields[i]['type'] == FieldType.FIELD_TYPE_DATETIME.value:
+                    elif fields[i]['type'] == Mysql.FieldType.FIELD_TYPE_DATETIME.value:
                         field_length = payload[idx]
                         idx += 1
                         year = int.from_bytes(payload[idx:idx+2], "little")
@@ -345,7 +352,7 @@ class Packet():
                         second = payload[idx+6]
                         row.append(f"{year}-{month}-{day} {hour}:{minute}:{second}")
 
-                    elif fields[i]['type'] == FieldType.FIELD_TYPE_TIMESTAMP.value:
+                    elif fields[i]['type'] == Mysql.FieldType.FIELD_TYPE_TIMESTAMP.value:
                         field_length = payload[idx]
                         idx += 1
                         year = int.from_bytes(payload[idx:idx+2], "little")
@@ -356,7 +363,7 @@ class Packet():
                         second = payload[idx+6]
                         row.append(f"{year}-{month}-{day} {hour}:{minute}:{second}")
 
-                    elif fields[i]['type'] == FieldType.FIELD_TYPE_TIMESTAMP.value:
+                    elif fields[i]['type'] == Mysql.FieldType.FIELD_TYPE_TIMESTAMP.value:
                         field_length = payload[idx]
                         idx += 1
                         year = int.from_bytes(payload[idx:idx+2], "little")
@@ -367,7 +374,7 @@ class Packet():
                         second = payload[idx+6]
                         row.append(f"{year}-{month}-{day} {hour}:{minute}:{second}")
 
-                    elif fields[i]['type'] == FieldType.FIELD_TYPE_TIME.value:
+                    elif fields[i]['type'] == Mysql.FieldType.FIELD_TYPE_TIME.value:
                         field_length = payload[idx]
                         idx += 1
                         flags = payload[idx]
@@ -377,28 +384,28 @@ class Packet():
                         second = payload[idx+7]
                         row.append(f"{hour}:{minute}:{second}")
 
-                    elif fields[i]['type'] == FieldType.FIELD_TYPE_YEAR.value:
+                    elif fields[i]['type'] == Mysql.FieldType.FIELD_TYPE_YEAR.value:
                         field_length = 2
                         year = int.from_bytes(payload[idx:idx+2], "little")
                         row.append(year)
 
-                    elif fields[i]['type'] == FieldType.FIELD_TYPE_VAR_STRING.value:
+                    elif fields[i]['type'] == Mysql.FieldType.FIELD_TYPE_VAR_STRING.value:
                         field_length = payload[idx]
                         idx += 1
                         row.append(payload[idx:idx+field_length].decode())
 
-                    elif fields[i]['type'] == FieldType.FIELD_TYPE_STRING.value:
+                    elif fields[i]['type'] == Mysql.FieldType.FIELD_TYPE_STRING.value:
                         field_length = payload[idx]
                         idx += 1
                         row.append(payload[idx:idx+field_length].decode())
 
-                    elif fields[i]['type'] == FieldType.FIELD_TYPE_BLOB.value:
+                    elif fields[i]['type'] == Mysql.FieldType.FIELD_TYPE_BLOB.value:
                         field_length = payload[idx]
                         idx += 1
                         row.append(payload[idx:idx+field_length])
 
                     #JSON maybe ? who know
-                    elif fields[i]['type'] == FieldType.FIELD_TYPE_UNKNOWN.value:
+                    elif fields[i]['type'] == Mysql.FieldType.FIELD_TYPE_UNKNOWN.value:
                         field_length = payload[idx]
                         idx += 1
                         row.append(payload[idx:idx+field_length])
@@ -423,7 +430,7 @@ class Packet():
 
                 result.append(row)
 
-        self.info['result'] = result
+        self.result.rows = result
 
 
     def check_capability(self, capabilities, val):
@@ -439,3 +446,72 @@ class Packet():
             return int.from_bytes(payload[1:3], "little")
         elif x[0] == 0xfe:
             return int.from_bytes(payload[1:8], "little")
+
+    
+    class Capability(Enum):
+        CLIENT_LONG_PASSWORD = 1
+        CLIENT_FOUND_ROWS = 2
+        CLIENT_LONG_FLAG = 1 << 2
+        CLIENT_CONNECT_WITH_DB = 1 << 3
+        CLIENT_NO_SCHEMA =  1 << 4
+        CLIENT_COMPRESS = 1 << 5
+        CLIENT_ODBC = 1 << 6
+        CLIENT_LOCAL_FILES = 1 << 7
+        CLIENT_IGNORE_SPACE = 1 << 8
+        CLIENT_PROTOCOL_41 = 1 << 9
+        CLIENT_INTERACTIVE = 1 << 10
+        CLIENT_SSL = 1 << 11
+        CLIENT_IGNORE_SIGPIPE = 1 << 12
+        CLIENT_TRANSACTIONS = 1 << 13
+        CLIENT_RESERVED = 1 << 14
+        CLIENT_RESERVED2 =  1 << 15
+        CLIENT_MULTI_STATEMENTS = 1 << 16
+        CLIENT_MULTI_RESULTS = 1 << 17
+        CLIENT_PS_MULTI_RESULTS = 1 << 18
+        CLIENT_PLUGIN_AUTH = 1 << 19
+        CLIENT_CONNECT_ATTRS = 1 << 20
+        CLIENT_PLUGIN_AUTH_LENENC_CLIENT_DATA = 1 << 21
+        CLIENT_CAN_HANDLE_EXPIRED_PASSWORDS = 1 << 22
+        CLIENT_SESSION_TRACK = 1 << 23
+        CLIENT_DEPRECATE_EOF = 1 << 24
+        CLIENT_OPTIONAL_RESULTSET_METADATA = 1 << 25
+        CLIENT_ZSTD_COMPRESSION_ALGORITHM = 1 << 26
+        CLIENT_QUERY_ATTRIBUTES = 1 << 27
+        MULTI_FACTOR_AUTHENTICATION = 1 << 28
+        CLIENT_CAPABILITY_EXTENSION = 1 << 29
+        CLIENT_SSL_VERIFY_SERVER_CERT = 1 << 30
+        CLIENT_REMEMBER_OPTIONS = 1 << 31
+
+    class FieldType(Enum):
+        FIELD_TYPE_TINY = 1
+        FIELD_TYPE_SHORT = 2
+        FIELD_TYPE_LONG = 3
+        FIELD_TYPE_FLOAT = 4
+        FIELD_TYPE_DOUBLE = 5
+        FIELD_TYPE_TIMESTAMP = 7
+        FIELD_TYPE_LONGLONG = 8
+        FIELD_TYPE_INT24 = 9
+        FIELD_TYPE_DATE = 10
+        FIELD_TYPE_TIME = 11
+        FIELD_TYPE_DATETIME = 12
+        FIELD_TYPE_YEAR = 13
+        FIELD_TYPE_UNKNOWN = 245
+        FIELD_TYPE_NEWDECIMAL = 246
+        FIELD_TYPE_BLOB = 252
+        FIELD_TYPE_VAR_STRING = 253
+        FIELD_TYPE_STRING = 254
+
+    class PacketType(Enum):
+        PACKET_OK = 1
+        PACKET_EOF = 2
+        PACKET_ERR = 3
+        PACKET_HANDSHAKE = 4
+        PACKET_HANDSHAKE_RESPONSE = 5
+        PACKET_CACHING_SHA2 = 6
+        PACKET_QUERY = 7
+        PACKET_PREPARE_STATEMENT = 8
+        PACKET_EXECUTE_STATEMENT = 9
+        PACKET_TABULAR_RESPONSE = 10
+        PACKET_CLOSE = 11
+        PACKET_QUIT = 12
+        PACKET_UNKNOWN = 99

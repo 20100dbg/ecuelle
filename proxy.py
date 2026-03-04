@@ -2,27 +2,32 @@ import argparse
 import socket
 import sys
 import threading
-from packet import Packet
-from utils import *
-from flags import *
+import time
+from common import *
+from mysql import *
+from postgres import *
+
+class Packet():
+    @staticmethod
+    def init(dbms, data):
+        if dbms == 'mysql' : return Mysql(data)
+        elif dbms == 'postgres' : return Postgres(data)
+        else : return None
+
 
 class Proxy():
 
-    class State():
-        def __init__(self):
-            self.server_capabilities = 0
-            self.client_capabilities = 0
-            self.last_query_type = None
-
-
-    def __init__(self, client, server_host, server_port):
+    def __init__(self, dbms, client, server_host, server_port):
+        self.dbms = dbms
         self.conn_client = client
         self.conn_server = None
-        self.state = Proxy.State()
         
-        t = threading.Thread(target=self.listen_client,args=[])
-        t.start()
         t = threading.Thread(target=self.listen_server,args=[server_host, server_port])
+        t.start()
+
+        time.sleep(0.1)
+
+        t = threading.Thread(target=self.listen_client,args=[])
         t.start()
 
 
@@ -33,27 +38,29 @@ class Proxy():
             if not data:
                 break
 
-
-            p = Packet(data, self.state)
+            p = Packet.init(self.dbms, data)
             print(f"C -> S : {p.packet_type}")
 
-            if p.info:
-                if p.packet_type == PacketType.PACKET_QUERY or \
-                   p.packet_type == PacketType.PACKET_PREPARE_STATEMENT:
-                    self.state.last_query_type = p.packet_type
-                    
-                    query = p.info['query']
-                    print(query)
+            if p.result.query:
+                query = p.result.query
+                print(query)
 
-                    if "SELECT id,name FROM users WHERE" in query:
-                        new_query = "SELECT id,password as name FROM users WHERE id = 1"
-                        data = self.replace_query(new_query)
-                        print(f"Caught query : {query}")
-                        print(f"Replace with : {new_query}")
+                if "SELECT id,name FROM users WHERE" in query:
+                    new_query = "SELECT id,password as name FROM users WHERE id = 1"
+                    data = p.replace_query(new_query)
+                    print(f"Caught query : {query}")
+                    print(f"Replace with : {new_query}")
 
+            
+            if p.result.parameters:
+                print(p.result.parameters)
 
-                elif p.packet_type == PacketType.PACKET_EXECUTE_STATEMENT:
-                    print(p.info['parameters'])
+            if p.result.connection_info:
+                print(p.result.connection_info)
+
+            if p.result.info:
+                print(p.result.info)
+
 
             print()
             self.conn_server.send(data)
@@ -63,38 +70,47 @@ class Proxy():
 
     def listen_server(self, server_host, server_port):
 
+        print(server_host, server_port)
+
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             s.connect((server_host, server_port))
             self.conn_server = s
+
+            print("connected to server")
 
             while True:
                 data = s.recv(65535)
                 if not data:
                     break
 
-                p = Packet(data, self.state)
+                p = Packet.init(self.dbms, data)
+
                 print(f"C <- S : {p.packet_type}")
 
-                if p.info:
-                    if p.packet_type == PacketType.PACKET_TABULAR_RESPONSE:
-                        for idx in range(len(p.info['result'])):
-                            print(p.info['result'][idx])
-                    
-                    elif p.packet_type == PacketType.PACKET_ERR:
-                        print(p.info)
+                if p.result.connection_info:
+                    print(p.result.connection_info)
+
+                if p.result.error:
+                    print(p.result.error)
+
+                if p.result.rows:
+                    print(p.result.rows)
+
+                if p.result.affected_rows:
+                    print(p.result.affected_rows)
+
+                if p.result.info:
+                    print(p.result.info)
+
 
                 print()
                 self.conn_client.send(data)
 
 
-    def replace_query(self, new_query):
-        new_query = new_query.encode()
-        query_length = len(new_query) + 1
-        query_length = query_length.to_bytes(3, 'little')
-        return query_length + b"\x00\x16" + new_query
 
 
-def main_loop(server_host, server_port, listening_port):
+
+def main_loop(dbms, server_host, server_port, listening_port):
 
     server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
@@ -106,14 +122,15 @@ def main_loop(server_host, server_port, listening_port):
 
     while True:
         client, client_address = server.accept()
-        p = Proxy(client, server_host, server_port)
+        p = Proxy(dbms, client, server_host, server_port)
 
 
-parser = argparse.ArgumentParser(description='MySQL proxy')
-parser.add_argument('-l', '--listening_port', metavar='', type=int, required=False, default=3306, help='Listening port waiting for clients')
-parser.add_argument('-s', '--server_host', metavar='', required=False, default='127.0.0.1', help='MySQL server IP or hostname')
-parser.add_argument('-p', '--server_port', metavar='', type=int, required=False, default=3307, help='MySQL server port')
+parser = argparse.ArgumentParser(description='MySQL and Postgres proxy')
+parser.add_argument('-l', '--listening_port', metavar='', type=int, required=True, help='Listening port waiting for clients')
+parser.add_argument('-s', '--server_host', metavar='', required=False, default='127.0.0.1', help='DB server IP or hostname')
+parser.add_argument('-p', '--server_port', metavar='', type=int, required=True, help='DB server port')
+parser.add_argument('-d', '--dbms', metavar='', required=True, choices=['mysql', 'postgres'], default='mysql', help='DBMS')
 args = parser.parse_args()
 
-main_loop(args.server_host, args.server_port, args.listening_port)
+main_loop(args.dbms, args.server_host, args.server_port, args.listening_port)
 
