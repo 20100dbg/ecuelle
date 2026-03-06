@@ -1,4 +1,5 @@
 import argparse
+import os
 import socket
 import sys
 import threading
@@ -6,12 +7,14 @@ import time
 from common import *
 from mysql import *
 from postgres import *
+from mssql import *
 
 class Packet():
     @staticmethod
     def init(dbms, data):
         if dbms == 'mysql' : return Mysql(data)
         elif dbms == 'postgres' : return Postgres(data)
+        elif dbms == 'mssql' : return Mssql(data)
         else : return None
 
 
@@ -124,13 +127,17 @@ def main_loop(dbms, server_host, server_port, listening_port):
         client, client_address = server.accept()
         p = Proxy(dbms, client, server_host, server_port)
 
+#dbms = ['mysql', 'postgres', 'mssql']
+dbms = os.getenv('DB_TYPE')
+listening_port = int(os.getenv('PROXY_PORT'))
+server_host = dbms
 
 parser = argparse.ArgumentParser(description='MySQL and Postgres proxy')
-parser.add_argument('-l', '--listening_port', metavar='', type=int, required=True, help='Listening port waiting for clients')
-parser.add_argument('-s', '--server_host', metavar='', required=False, default='127.0.0.1', help='DB server IP or hostname')
+#parser.add_argument('-l', '--listening_port', metavar='', type=int, required=True, help='Listening port waiting for clients')
+#parser.add_argument('-s', '--server_host', metavar='', required=False, default='127.0.0.1', help='DB server IP or hostname')
 parser.add_argument('-p', '--server_port', metavar='', type=int, required=True, help='DB server port')
-parser.add_argument('-d', '--dbms', metavar='', required=True, choices=['mysql', 'postgres'], default='mysql', help='DBMS')
+#parser.add_argument('-d', '--dbms', metavar='', required=True, choices=dbms, default='mysql', help='DBMS')
 args = parser.parse_args()
 
-main_loop(args.dbms, args.server_host, args.server_port, args.listening_port)
+main_loop(dbms, server_host, args.server_port, listening_port)
 

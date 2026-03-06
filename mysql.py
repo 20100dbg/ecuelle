@@ -10,6 +10,7 @@ class Mysql():
         self.pkt = pkt
         self.result = Result()
         self.debug = True
+        self.packet_type = None
 
         try:
             self.parse_packet(pkt)
@@ -95,8 +96,7 @@ class Mysql():
         elif packet_number == 0 and payload[0] == 0x01:
             return Mysql.PacketType.PACKET_QUIT
         else:
-            self.print_debug(f"UNKNOWN PACKET")
-            return Mysql.PacketType.UNKNOWN
+            return Mysql.PacketType.PACKET_UNKNOWN
 
     def parse_EXECUTE_STATEMENT(self, payload):
         
@@ -249,8 +249,6 @@ class Mysql():
         while True:
 
             row = []
-
-            print(f"{payload[idx:].hex()}")
 
             packet_length = int.from_bytes(payload[idx:idx+3], "little")
             packet_number = payload[idx+3]

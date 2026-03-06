@@ -1,71 +1,28 @@
 <?php
 
 $host = '127.0.0.1';
-$dbname = 'sample';
-$username = 'root';
-$password = 'my-secret-password';
-$port = 3306;
+$port = "5432";
+$dbname = "mydb";
+$user = "myuser";
+$password = "mypassword";
 
-$db = mysqli_connect($host, $username, $password, $dbname, $port);
+$conn_string = "host=$host port=$port dbname=$dbname user=$user password=$password";
 
-$query = "SELECT * FROM ts";
-$query = "SELECT * FROM data";
+$conn = pg_connect($conn_string);
 
-$query = 'SELECT id,name,password FROM users WHERE id = 1 or id = 2';
-$query = 'SELECT id,name,password FROM users WHERE id = ?';
+$query = "SELECT id, name FROM users";
 
+$result = pg_query($conn, $query);
 
-$args = [];
-$args = [1];
-
-
-//prepared statement
-$result = $db->execute_query($query, $args);
-
-//query
-//$result = $db->query($query);
+/*
+$result = pg_prepare($conn, "my_query", $query);
+$result = pg_execute($conn, "my_query", array(""));
+*/
 
 foreach ($result as $row) {
     var_dump($row);
 }
 
-/*
-foreach ($result as $row) {
-    echo $row['id'] . ' - ' . $row['name'] . PHP_EOL;
-}
-*/
 
-
-
-/*
-try {
-    $pdo = new PDO("mysql:host=$host;dbname=$dbname;charset=utf8;port=$port", $username, $password);
-    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-
-    $sql = "SELECT id, name FROM users WHERE id=:id OR name=:name";
-    $stmt = $pdo->prepare($sql);
-
-    $id = 1;
-    $name = 'admin';
-
-    //PDO::PARAM_BOOL
-    //PDO::PARAM_NULL
-
-    $stmt->bindParam(':id', $id, PDO::PARAM_INT);
-    $stmt->bindParam(':name', $name, PDO::PARAM_STR);
-    $stmt->execute();
-    $resultat = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    var_dump($resultat);
-
-    /*
-    $sql = "INSERT INTO utilisateurs (nom, email) VALUES (:nom, :email)";
-    $stmt = $pdo->prepare($sql);
-    $stmt->bindParam(':id', $id, PDO::PARAM_INT);
-    $stmt->execute();
-    */
-
-/*
-} catch (PDOException $e) {
-    echo "Erreur : " . $e->getMessage();
-}
-*/
+pg_free_result($result);
+pg_close($conn);

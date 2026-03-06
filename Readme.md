@@ -6,8 +6,10 @@ Ecuelle is a MySQL/PostgreSQL proxy.
 
 ## Test environment
 
-Check start_postgres.sh and start_mysql.sh
-You can set root password, listening port and more.
+DB_TYPE=mysql PROXY_PORT=3306 docker compose --profile mysql up --build
+
+DB_TYPE=mysql PROXY_PORT=3306 docker compose --profile mysql run --remove-orphans --service-ports app -p 3306
+
 
 
 ## Populate database
@@ -33,3 +35,7 @@ docker pull postgres:14.22-alpine
 docker exec -it -u postgres postgres-container bash
 
 createdb sample
+
+
+
+sqlcmd -S <ip address,port> -U <login_name> -P <password> -No

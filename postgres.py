@@ -92,27 +92,6 @@ class Postgres():
             return Postgres.PacketType(pkt[0])
 
 
-
-    class FieldType(Enum):
-        FIELD_TYPE_TINY = 1
-        FIELD_TYPE_SHORT = 2
-        FIELD_TYPE_LONG = 3
-        FIELD_TYPE_FLOAT = 4
-        FIELD_TYPE_DOUBLE = 5
-        FIELD_TYPE_TIMESTAMP = 7
-        FIELD_TYPE_LONGLONG = 8
-        FIELD_TYPE_INT24 = 9
-        FIELD_TYPE_DATE = 10
-        FIELD_TYPE_TIME = 11
-        FIELD_TYPE_DATETIME = 12
-        FIELD_TYPE_YEAR = 13
-        FIELD_TYPE_UNKNOWN = 245
-        FIELD_TYPE_NEWDECIMAL = 246
-        FIELD_TYPE_BLOB = 252
-        FIELD_TYPE_VAR_STRING = 253
-        FIELD_TYPE_STRING = 254
-
-
     class PacketType(Enum):
         PACKET_COMPLETION = 0x43
         PACKET_DATA_ROW = 0x44
