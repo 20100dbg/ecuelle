@@ -1,30 +1,27 @@
 services:
   app:
+    #image: python:3.11
     build: .
     container_name: ecuelle_app
     volumes:
       - .:/app
-    working_dir: /app
-    entrypoint: python proxy.py
     environment:
       DB_HOST: db
       PROXY_PORT: ${PROXY_PORT}
       DB_TYPE: ${DB_TYPE}
     ports:
+      - "8080:80"
       - "${PROXY_PORT}:${PROXY_PORT}"
     depends_on:
       - ${DB_TYPE}
 
   mysql:
-    image: mysql:latest
+    image: mysql:5.7
     profiles: ["mysql"]
     container_name: mysql_db
     restart: always
     environment:
       MYSQL_ROOT_PASSWORD: my-secret-password
-      #MYSQL_DATABASE: mydb
-      #MYSQL_USER: myuser
-      #MYSQL_PASSWORD: my-secret-password
     volumes:
       - mysql_data:/var/lib/mysql
     networks:
@@ -38,7 +35,6 @@ services:
     container_name: postgres_db
     restart: always
     environment:
-      POSTGRES_DB: mydb
       POSTGRES_USER: myuser
       POSTGRES_PASSWORD: my-secret-password
     volumes:

@@ -131,7 +131,7 @@ class Mysql():
         response_code = payload[0]
         
         if len(payload) == 7:
-            self.result.affected_rows = payload[1]
+            self.result.nb_rows = payload[1]
             server_status = int.from_bytes(payload[3:4], "little")
             warnings = int.from_bytes(payload[5:6], "little")
 
@@ -143,7 +143,8 @@ class Mysql():
         sql_state = payload[4:9].decode()
         error_message = payload[9:].decode()
 
-        self.result.error = {'error_code': error_code, 'sql_state': sql_state, 'error_message': error_message}
+        #self.result.error = {'error_code': error_code, 'sql_state': sql_state, 'error_message': error_message}
+        self.result.error = error_message
 
     def parse_HANDSHAKE(self, payload):
         version = payload[0]
@@ -176,7 +177,7 @@ class Mysql():
         elif version == 9:
             salt = payload[idx+5:]
 
-        self.result.info = {'server_version': server_version, 'thread_id': thread_id, 'salt': salt.hex()}
+        self.result.info = {'server_version': server_version, 'salt': salt.hex()}
 
 
     def parse_HANDSHAKE_RESPONSE(self, payload):
@@ -429,6 +430,7 @@ class Mysql():
                 result.append(row)
 
         self.result.rows = result
+        self.result.nb_rows = len(result)
 
 
     def check_capability(self, capabilities, val):
@@ -512,4 +514,4 @@ class Mysql():
         PACKET_TABULAR_RESPONSE = 10
         PACKET_CLOSE = 11
         PACKET_QUIT = 12
-        PACKET_UNKNOWN = 99
+        PACKET_UNKNOWN = 0xff

@@ -1,5 +1,7 @@
 Proxy
 
+- edit handshake to force disable SSL
+
 - Web UI
 
 - loop on recv if len(data) == max data
@@ -38,7 +40,6 @@ Proxy
 - display table, columns :
 -- timestamp
 -- IP:port
--- type : classic / prepared
 -- affected_rows / len(rows)
 -- state (ok / error)
 -- show original / pretty query

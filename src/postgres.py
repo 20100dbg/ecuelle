@@ -22,19 +22,47 @@ class Postgres():
 
 
     def parse_packet(self, pkt):
-
-        #self.packet_type = self.get_packet_type(packet_number, payload_length, payload)
-
-        self.packet_type = Postgres.PacketType(pkt[0])
-
+        
+        #self.packet_type = Postgres.PacketType(pkt[0])
+        self.packet_type = self.get_packet_type(pkt)
 
         if self.packet_type == Postgres.PacketType.PACKET_QUERY:
             payload_length = int.from_bytes(pkt[1:5], "big")
-            self.result.query = pkt[5:-1].decode()
+            query = pkt[5:-1].decode()
+
+            if query in ["BEGIN", "ROLLBACK"]:
+                query = ""
+
+            self.result.query = query
 
         elif self.packet_type == Postgres.PacketType.PACKET_ROW_DESCRIPTION:
             self.parse_ROW_DESCRIPTION(pkt)
 
+        elif self.packet_type == Postgres.PacketType.PACKET_ERROR:
+            self.parse_ERROR(pkt)
+
+
+    def parse_ERROR(self, pkt):
+        payload_length = int.from_bytes(pkt[1:5], "big")
+        
+        idx = 5
+        idx_end = pkt.find(0, idx)
+        severity = pkt[idx+1:idx_end]
+
+        idx = idx_end + 1
+        idx_end = pkt.find(0, idx)
+        text = pkt[idx+1:idx_end]
+
+        idx = idx_end + 1
+        idx_end = pkt.find(0, idx+1)
+        code = pkt[idx+1:idx_end]
+
+        idx = idx_end + 1
+        idx_end = pkt.find(0, idx+1)
+        message = pkt[idx+1:idx_end]
+
+        #print(f"severity {severity}, text {text}, code {code}, message {message}")
+        self.result.error = message
 
 
     def parse_ROW_DESCRIPTION(self, pkt):
@@ -70,9 +98,10 @@ class Postgres():
             rows.append(row)
 
         self.result.rows = rows
+        self.result.nb_rows = len(rows)
+
 
     def get_packet_type(self, pkt):
-
 
         if pkt[0] == 0:
             payload_length = int.from_bytes(pkt[0:4], "big")
@@ -80,23 +109,27 @@ class Postgres():
             payload = pkt[4:payload_length - 4]
             request_code = int.from_bytes(payload, "big")
             if request_code == 80877103:
-                print("SSL_RESPONSE")
-
+                return Postgres.PacketType.PACKET_SSL_REQUEST
 
         elif len(pkt) == 1 and pkt[0] == 0x4e:
-            print("SSL_RESPONSE")
-            pass
+            return Postgres.PacketType.PACKET_SSL_RESPONSE
 
-
-        else:
+        elif pkt[0] in [packet_type.value for packet_type in Postgres.PacketType]:
             return Postgres.PacketType(pkt[0])
+        
+        return Postgres.PacketType.PACKET_UNKNOWN
 
 
     class PacketType(Enum):
+        PACKET_SSL_REQUEST = 0x00
+        PACKET_SSL_RESPONSE = 0x01
         PACKET_COMPLETION = 0x43
         PACKET_DATA_ROW = 0x44
+        PACKET_ERROR = 0x45
         PACKET_QUERY = 0x51
         PACKET_AUTH_REQUEST = 0x52
         PACKET_ROW_DESCRIPTION = 0x54
         PACKET_TERMINATION = 0x58
+        PACKET_READY_FOR_QUERY = 0x5a
         PACKET_SASL_RESPONSE = 0x70
+        PACKET_UNKNOWN = 0xff

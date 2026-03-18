@@ -48,18 +48,9 @@ class Proxy():
                 query = p.result.query
                 print(query)
 
-                if "SELECT id,name FROM users WHERE" in query:
-                    new_query = "SELECT id,password as name FROM users WHERE id = 1"
-                    data = p.replace_query(new_query)
-                    print(f"Caught query : {query}")
-                    print(f"Replace with : {new_query}")
-
             
             if p.result.parameters:
                 print(p.result.parameters)
-
-            if p.result.connection_info:
-                print(p.result.connection_info)
 
             if p.result.info:
                 print(p.result.info)
@@ -90,17 +81,14 @@ class Proxy():
 
                 print(f"C <- S : {p.packet_type}")
 
-                if p.result.connection_info:
-                    print(p.result.connection_info)
-
                 if p.result.error:
                     print(p.result.error)
 
                 if p.result.rows:
                     print(p.result.rows)
 
-                if p.result.affected_rows:
-                    print(p.result.affected_rows)
+                if p.result.nb_rows:
+                    print(p.result.nb_rows)
 
                 if p.result.info:
                     print(p.result.info)
@@ -108,8 +96,6 @@ class Proxy():
 
                 print()
                 self.conn_client.send(data)
-
-
 
 
 
@@ -127,17 +113,14 @@ def main_loop(dbms, server_host, server_port, listening_port):
         client, client_address = server.accept()
         p = Proxy(dbms, client, server_host, server_port)
 
-#dbms = ['mysql', 'postgres', 'mssql']
-dbms = os.getenv('DB_TYPE')
-listening_port = int(os.getenv('PROXY_PORT'))
-server_host = dbms
 
-parser = argparse.ArgumentParser(description='MySQL and Postgres proxy')
-#parser.add_argument('-l', '--listening_port', metavar='', type=int, required=True, help='Listening port waiting for clients')
-#parser.add_argument('-s', '--server_host', metavar='', required=False, default='127.0.0.1', help='DB server IP or hostname')
+"""
+parser = argparse.ArgumentParser(description='MySQL/Postgres/MSSQL proxy')
+parser.add_argument('-s', '--server_host', metavar='', required=False, default='127.0.0.1', help='DB server IP or hostname')
 parser.add_argument('-p', '--server_port', metavar='', type=int, required=True, help='DB server port')
+#parser.add_argument('-l', '--listening_port', metavar='', type=int, required=True, help='Listening port waiting for clients')
 #parser.add_argument('-d', '--dbms', metavar='', required=True, choices=dbms, default='mysql', help='DBMS')
 args = parser.parse_args()
+"""
 
-main_loop(dbms, server_host, args.server_port, listening_port)
 

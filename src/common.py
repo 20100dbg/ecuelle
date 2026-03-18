@@ -1,21 +1,16 @@
 import struct
 from enum import Enum
 
-class Dbms(Enum):
-    MySQL = "mysql"
-    PostgreSQL = "postgres"
 
 class Result():
 
     def __init__(self):
-        self.connection_info = None
-        
         self.query = None
         self.parameters = None
         
         self.error = None
         self.rows = None
-        self.affected_rows = None
+        self.nb_rows = None
 
         self.info = None
         
