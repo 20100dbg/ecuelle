@@ -73,21 +73,23 @@ class Proxy():
             if not data:
                 break
 
+            Utils.print_hex(data)
+
             p = Packet.init(self.dbms, data)
             print(f"C -> S : {p.packet_type}")
 
             if p.result.query:
                 query = p.result.query
-                print(f"emit {query}")
-                socketio.emit('receive_query', {'timestamp': time.time(), 'query': query})
+                pretty_query = Utils.clean_query(query)
+                socketio.emit('receive_query', {'timestamp': time.time(), 'dbms': self.dbms, 'query': query, 'pretty_query': pretty_query})
 
             if p.result.parameters:
                 #print(p.result.parameters)
-                socketio.emit('receive_query', {'timestamp': time.time(), 'parameters': p.result.parameters})
+                socketio.emit('receive_query', {'timestamp': time.time(), 'dbms': self.dbms, 'parameters': p.result.parameters})
 
             if p.result.info:
                 #print(p.result.info)
-                socketio.emit('receive_query', {'timestamp': time.time(), 'info': p.result.info})
+                socketio.emit('receive_query', {'timestamp': time.time(), 'dbms': self.dbms, 'info': p.result.info})
 
 
             print()
@@ -117,20 +119,19 @@ class Proxy():
 
                 if p.result.error:
                     #print(p.result.error)
-                    socketio.emit('receive_query', {'timestamp': time.time(), 'error': p.result.error})
-
+                    socketio.emit('receive_query', {'timestamp': time.time(), 'dbms': self.dbms, 'error': p.result.error})
 
                 if p.result.rows:
                     #print(p.result.rows)
-                    socketio.emit('receive_query', {'timestamp': time.time(), 'result': p.result.rows})
+                    socketio.emit('receive_query', {'timestamp': time.time(), 'dbms': self.dbms, 'result': p.result.rows})
 
                 if p.result.nb_rows:
                     #print(p.result.nb_rows)
-                    socketio.emit('receive_query', {'timestamp': time.time(), 'nb_rows': p.result.nb_rows})
+                    socketio.emit('receive_query', {'timestamp': time.time(), 'dbms': self.dbms, 'nb_rows': p.result.nb_rows})
 
                 if p.result.info:
                     #print(p.result.info)
-                    socketio.emit('receive_query', {'timestamp': time.time(), 'info': p.result.info})
+                    socketio.emit('receive_query', {'timestamp': time.time(), 'dbms': self.dbms, 'info': p.result.info})
 
 
                 print()

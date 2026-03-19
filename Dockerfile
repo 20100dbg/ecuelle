@@ -5,7 +5,7 @@ RUN apt-get update && \
     -y --allow-unauthenticated
 
 RUN mkdir -p /app/src
-COPY ./src /app/src
+#COPY ./src /app/src
 COPY ./conf /app
 WORKDIR /app
 

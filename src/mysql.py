@@ -150,7 +150,7 @@ class Mysql():
         version = payload[0]
 
         idx = payload.find(0)
-        server_version = payload[1:idx]
+        server_version = payload[1:idx].decode()
         thread_id = int.from_bytes(payload[idx+1:idx+5], "little")
 
         if version == 10:

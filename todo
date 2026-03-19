@@ -2,8 +2,6 @@ Proxy
 
 - edit handshake to force disable SSL
 
-- Web UI
-
 - loop on recv if len(data) == max data
 
 - execute arbitrary query at any time ?
@@ -14,10 +12,6 @@ Proxy
 -- format SQL
 -- replace ? with params
 -- delete /**/ comments + trim()
-
-
-- DBMS support : PostgreSQL, MS SQL
--- Redis, MongoDB, SQLite (hook on .so/.dll functions) ?
 
 - TLS support
 
@@ -31,11 +25,6 @@ Proxy
 - option log
 -- print
 -- write file
-
-- inject arbitrary queries
--- at any time ?
--- hijack open connection
---- send fake close/quit to client and keep talking with server
 
 - display table, columns :
 -- timestamp

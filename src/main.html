@@ -65,6 +65,8 @@ socket.on("connect", () => { console.log('connected'); });
 socket.on("disconnect", () => { console.log('disconnected'); });
 
 let info = {};
+let idx_line = 0;
+let results = {}
 
 /*
 function send_request() {
@@ -76,11 +78,9 @@ socket.on("receive_query", (params) => {
 
   console.log(params);
 
-
   if (params.info) {
     info = Object.assign(info, params.info);
     console.log(info);
-
   }
 
   if (params.query) {
@@ -88,18 +88,16 @@ socket.on("receive_query", (params) => {
     //nb_rows = params.nb_rows;
     status = params.error;
 
-    addRowParams(Date(), params.dbms, params.query)
+    addRowParams(params.timestamp, params.dbms, params.query, params.nb_rows, status)
   }
 
   if (params.rows) {
-
-  }
-  
+    results[idx_line] = params.rows;
+  }  
 
   if (params.error) {
 
   }
-
 
 });
 
@@ -109,9 +107,23 @@ function addRow(row) {
 }
 
 function addRowParams(time, dbms, query, nb_rows, status, pretty_query, parameters) {
-    addRow([time, dbms, query, nb_rows, status, pretty_query, parameters]);
+
+  const template = document.getElementById("tpl_actions");
+  const clone = document.importNode(template.content, true);
+  let buttons = clone.querySelectorAll("button");
+  buttons[0].setAttribute("idx", idx_line);
+
+  addRow([time, dbms, query, nb_rows, status, pretty_query, parameters]);
+
+  idx_line++;
 }
 
+function show_result(button) {
+  console.log(button);
+
+  //idx = button.idx
+  //console.log(results[idx]);
+}
 
 const table = new DataTable('#queries', {
     info: false,
@@ -152,6 +164,17 @@ agGrid.createGrid(myGridElement, gridOptions);
 
 
 </script>
+
+<template id="tpl_actions">
+  <button onclick="show_result(this)">Show results</button>
+</template>
+
+<template>
+  <select>
+    <option>Show result</option>
+    <option></option>
+  </select>
+</template>
 
   </body>
 </html>

@@ -13,10 +13,8 @@ docker build -t ecuelle .
 
 ./start_db.sh
 
-docker run -it --name ecuelle --rm --network=ecuelle-network -e PROXY_PORT=3306 -e DB_TYPE=mysql -e SERVER_HOST=mysql_db -e SERVER_PORT=3306 -p8080:80 -p3306:3306 ecuelle:latest
 
-
-
+docker run -it --name ecuelle --rm --mount type=bind,src=./src,dst=/app/src --network=ecuelle-network -e PROXY_PORT=3306 -e DB_TYPE=mysql -e SERVER_HOST=mysql_db -e SERVER_PORT=3306 -p8080:80 -p3306:3306 ecuelle:latest
 
 
 
