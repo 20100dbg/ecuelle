@@ -11,6 +11,7 @@ class Result():
         self.parameters = None
         
         self.error = None
+        self.cols = None
         self.rows = None
         self.nb_rows = None
 
@@ -54,6 +55,7 @@ class Utils():
             return part1 + "  " + part2
 
         line = 0
+        ret = "\n"
 
         for idx in range(0, len(pkt), 16):
 
@@ -63,7 +65,8 @@ class Utils():
                 pkt_slice = pkt_slice + ((16 -len(pkt_slice)) * b' ')
 
             #{(line*16):08x}
-            print(f"{to_hex(pkt_slice)}  {print_ascii(pkt_slice)}")
+            ret += f"{to_hex(pkt_slice)}  {print_ascii(pkt_slice)}\n"
 
             line += 1
 
+        return ret + "\n"

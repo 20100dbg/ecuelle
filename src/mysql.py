@@ -2,7 +2,9 @@ import struct
 from math import ceil
 from common import *
 from enum import Enum
-
+import logging
+import sys, traceback
+logger = logging.getLogger(__name__)
 
 class Mysql():
 
@@ -15,7 +17,9 @@ class Mysql():
         try:
             self.parse_packet(pkt)
         except Exception as e:
-            print(e)
+            traceback.print_exc(file=sys.stdout)
+            logger.debug(f"parse_packet Exception : {e}")
+            logger.debug(f"pkt={Utils.print_hex(pkt)}")
 
     #@staticmethod
     def replace_query(self, new_query):
@@ -27,6 +31,7 @@ class Mysql():
     def print_debug(self, txt):
         if self.debug:
             print(f"{txt}")
+            logger.debug(txt)
 
 
     def parse_packet(self, pkt):
@@ -36,7 +41,7 @@ class Mysql():
         payload = pkt[4:]
 
         self.packet_type = self.get_packet_type(packet_number, payload_length, payload)
-        #self.print_debug(f"Mysql.PacketType {packet_type}")
+        logging.debug(f"packet_type = {self.packet_type}")
 
         # packet is > 16mb
         if payload_length == 16777215:
@@ -208,9 +213,7 @@ class Mysql():
         for _ in range(nb_fields):
 
             packet_length = int.from_bytes(payload[idx:idx+3], "little")
-            #self.print_debug(f"packet_length : {packet_length}")
             packet_number = payload[idx + 3]
-            #self.print_debug(f"packet_number : {packet_number}")
 
             idx += 4
             fields_name = ['catalog', 'database', 'table', 'original_table', 'name', 'original_name']
@@ -227,7 +230,6 @@ class Mysql():
                     field_original_name = field_value.decode()
 
                 idx += 1+field_length
-                #self.print_debug(f"field {fn} : {field_value}")
 
             charset = payload[idx+1]
             field_length = int.from_bytes(payload[idx+3:idx+7], "little")
@@ -414,7 +416,7 @@ class Mysql():
                         idx += 1
                         row.append(payload[idx:idx+field_length])
 
-                    #print(f"{fields[i]['name']} - {row[-1]} {payload[idx:idx+field_length]}")
+                    logger.debug(f"{fields[i]['name']} - {row[-1]} {payload[idx:idx+field_length]}")
                     idx += field_length
 
                 result.append(row)
@@ -429,6 +431,7 @@ class Mysql():
 
                 result.append(row)
 
+        self.result.cols = fields
         self.result.rows = result
         self.result.nb_rows = len(result)
 

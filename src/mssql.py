@@ -1,6 +1,9 @@
 import struct
 from common import *
 from enum import Enum
+import logging
+import sys, traceback
+logger = logging.getLogger(__name__)
 
 class Mssql():
 
@@ -13,7 +16,9 @@ class Mssql():
         try:
             self.parse_packet(pkt)
         except Exception as e:
-            print(e)
+            traceback.print_exc(file=sys.stdout)
+            logger.debug(f"parse_packet Exception : {e}")
+            logger.debug(f"pkt={Utils.print_hex(pkt)}")
 
 
     def print_debug(self, txt):
@@ -23,6 +28,7 @@ class Mssql():
 
     def parse_packet(self, pkt):
         pass
+        #Utils.print_hex(pkt)
 
 
     class FieldType(Enum):

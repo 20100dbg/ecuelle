@@ -20,9 +20,6 @@ Proxy
 -- test return many rows
 -- test named parameters
 
-- option log
--- print
--- write file
 
 - display table, columns :
 -- timestamp
