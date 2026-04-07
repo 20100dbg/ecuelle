@@ -4,9 +4,7 @@ Proxy
 
 - loop on recv if len(data) == max data
 
-- execute arbitrary query at any time ?
-
-- check client capabilities
+- check mysql client capabilities
 
 - sql color syntax : https://github.com/scriptcoded/sql-highlight
 -- format SQL

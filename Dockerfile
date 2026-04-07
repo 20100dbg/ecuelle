@@ -5,7 +5,7 @@ RUN apt-get update && \
     -y --allow-unauthenticated
 
 RUN mkdir -p /app/src
-#COPY ./src /app/src
+
 COPY ./conf /app
 WORKDIR /app
 
@@ -16,6 +16,8 @@ RUN python3 -m venv .venv && \
 RUN mv "/app/gunicorn.conf" /etc/nginx/sites-available/gunicorn && \
     ln -s /etc/nginx/sites-available/gunicorn /etc/nginx/sites-enabled && \
     chmod +x "/app/gunicorn.sh"
+
+COPY ./src /app/src
 
 EXPOSE 80
 
