@@ -258,7 +258,12 @@ class Mysql():
             response_code = payload[idx+4]
             idx += 4
 
-            if packet_length == 5 and response_code == 0xfe:
+            #subpacket: response OK
+            if packet_length == 7 and payload[idx] == 0xfe:
+                break
+
+
+            if packet_length < 8 and response_code == 0xfe:
                 if not got_intermediate_eof:
                     got_intermediate_eof = True
                     idx += 5
@@ -426,7 +431,8 @@ class Mysql():
 
                 for i in range(len(fields)):
                     field_length = payload[idx]
-                    row.append(payload[idx+1:idx+1+field_length].decode())                    
+                    val = payload[idx+1:idx+1+field_length].decode()
+                    row.append(val)
                     idx += 1 + field_length
 
                 result.append(row)

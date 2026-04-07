@@ -1,180 +1,67 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-    <script src="/static/socket.io.js"></script>
-    <script src="/static/jquery-3.4.1.js"></script>
-    <!--script src="/static/ag-grid.min.js"></script-->
-    <script src="/static/bootstrap.bundle.min.js"></script>
-    <script src="/static/datatables.min.js"></script>
-    <link href="/static/datatables.min.css" rel="stylesheet" />
-    <link href="/static/bootstrap.min.css" rel="stylesheet" />
-    <title></title>
-  </head>
-  <body>
+<head>
+<meta charset="utf-8">
+<title>Ecuelle</title>
+<link rel="stylesheet" href="static/bootstrap.min.css">
+</head>
+<body>
 
-<header>
-  <nav class="navbar navbar-expand-md navbar-dark fixed-top bg-dark">
+<div id="app">
 
-    <a class="navbar-brand" href="#"></a>
-    
-    <!--
-    <div class="collapse navbar-collapse" id="navbarCollapse">
-      <ul class="navbar-nav mr-auto">
-        <li class="nav-item active">
-          <a class="nav-link" href="#">Home <span class="sr-only">(current)</span></a>
-        </li>
-        <li class="nav-item">
-          <a class="nav-link" href="#">Link</a>
-        </li>
-        <li class="nav-item">
-          <a class="nav-link disabled">Disabled</a>
-        </li>
-      </ul>
-      <form class="form-inline mt-2 mt-md-0">
-        <input class="form-control mr-sm-2" type="text" placeholder="Search" aria-label="Search">
-        <button class="btn btn-outline-success my-2 my-sm-0" type="submit">Search</button>
-      </form>
+    <button @click="onrequest">request !</button>
+    <div id="result">{{ result }}</div>
+
+    <div id="connections">
     </div>
-    -->
 
-  </nav>
-</header>
+    <div id="queries">
+        <table class="table table-bordered">
 
-<br><br>
+            <template v-for="query in queries">
+                <tr>
+                    <td class="tiny">
+                        <div class="dropdown">
+                            <button class="btn btn-default dropdown-toggle btn-xs" type="button">
+                                >
+                            </button>
+                            <ul class="dropdown-menu">
+                                <li><a href="#">Option 1</a></li>
+                                <li><a href="#">Option 2</a></li>
+                            </ul>
+                        </div>
+                    </td>
 
-<!--div id="myGrid" style="height: 800px"></div-->
+                    <td class="query">
+                        {{query.query}}
 
-<table id="queries" class="display">
-    <thead>
-        <tr>
-            <th>Time</th>
-            <th>DBMS</th>
-            <th>Query</th>
-            <th>Nb rows</th>
-            <th>Actions</th>
-        </tr>
-    </thead>
-    <tbody></tbody>
-</table>
+                        <table class="table table-bordered" v-if="query.result">
+                            <tr>
+                                <template v-for="col in query.result.cols">
+                                    <th>{{col}}</th>
+                                </template>
+                            </tr>
+                            <template v-for="row in query.result.rows">
+                                <tr>
+                                    <template v-for="val in row">
+                                        <td>{{col}}</td>
+                                    </template>
+                                </tr>
+                            </template>
+                        </table>
 
-<script type="text/javascript">
-const socket = io();
-socket.on("connect", () => { console.log('connected'); });
-socket.on("disconnect", () => { console.log('disconnected'); });
+                    </td>
+                </tr>
+            </template>
+        </table>
 
-let info = {};
-let idx_line = 0;
-let results = {}
+    </div>
+</div>
 
-/*
-function send_request() {
-  socket.emit("call_server", { 'id': id, 'str': str });
-}
-*/
+<script src="static/socket.io.min.js" type="application/javascript"></script>
+<script src="static/vue.global.js"></script>
+<!--script src="static/bootstrap.min.js" type="application/javascript"></script-->
+<script src="static/app.js"></script>
 
-socket.on("receive_query", (params) => {
-
-  console.log(params);
-
-  if (params.info) {
-    info = Object.assign(info, params.info);
-    console.log(info);
-  }
-
-  if (params.query) {
-    query = params.query;
-    //nb_rows = params.nb_rows;
-    status = params.error;
-
-    addRowParams(params.timestamp, params.dbms, params.query, params.nb_rows, status)
-  }
-
-  if (params.rows) {
-    results[idx_line] = params.rows;
-  }  
-
-  if (params.error) {
-
-  }
-
-});
-
-
-function addRow(row) {
-    table.row.add(row).draw(false);
-}
-
-function addRowParams(time, dbms, query, nb_rows, status, pretty_query, parameters) {
-
-  const template = document.getElementById("tpl_actions");
-  const clone = document.importNode(template.content, true);
-  let buttons = clone.querySelectorAll("button");
-  buttons[0].setAttribute("idx", idx_line);
-
-  addRow([time, dbms, query, nb_rows, status, pretty_query, parameters]);
-
-  idx_line++;
-}
-
-function show_result(button) {
-  console.log(button);
-
-  //idx = button.idx
-  //console.log(results[idx]);
-}
-
-const table = new DataTable('#queries', {
-    info: false,
-    searching: false,
-    ordering: true,
-    paging: false,
-    columnDefs: [
-        {
-            target: 4,
-            visible: false
-        },
-        {
-            target: 5,
-            visible: false
-        },
-        {
-            target: 6,
-            visible: false
-        }
-    ]});
-
-/*
-const gridOptions = {
-    rowData: [],
-    columnDefs: [
-        { field: "Time" },
-        { field: "DBMS" },
-        { field: "Query" },
-        { field: "Nb rows" }
-        { field: "Actions" }
-    ]
-};
-
-
-const myGridElement = document.querySelector('#myGrid');
-agGrid.createGrid(myGridElement, gridOptions);
-*/
-
-
-</script>
-
-<template id="tpl_actions">
-  <button onclick="show_result(this)">Show results</button>
-</template>
-
-<template>
-  <select>
-    <option>Show result</option>
-    <option></option>
-  </select>
-</template>
-
-  </body>
+</body>
 </html>
