@@ -8,45 +8,27 @@ createApp({
       
       queries: [],
       //{query: "", error:"XXXX/false", result:{cols:[], rows:[]}}
-
-      result: 0
     }),
 
     created() {
       socket.on("connect", () => { console.log('connected'); });
       socket.on("disconnect", () => { console.log('disconnected'); });
-      
-
-      socket.on("result", (msg) => {
-        this.result = msg.data;
-      });
 
       socket.on("msg", (msg) => {
 
-        console.log(msg);
-
         if (msg.info) {
+          this.connections.push(msg.info);
         }
 
         if (msg.query) {
           let q = {'query': msg.query, 'result': ''}
-          _queries.values.push(q)
+          this.queries.push(q)
         }
 
         if (msg.result) {
-          let q = _queries.values[_queries.values.length-1];
-          q['result'] = msg.result;
-          q['error'] = false;
-          _queries.values[_queries.values.length-1] = q;
+          this.queries[this.queries.length-1]['result'] = msg.result;
+          this.queries[this.queries.length-1]['error'] = msg.error;
         }
-
-        if (msg.error) {
-          let q = _queries.values[_queries.values.length-1];
-          q['result'] = false;
-          q['error'] = msg.error;
-          _queries.values[_queries.values.length-1] = q;
-        }
-
       });
     },
 

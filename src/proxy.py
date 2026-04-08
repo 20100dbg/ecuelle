@@ -117,13 +117,9 @@ class Proxy():
 
                 logger.info(f"C <- S : {p.packet_type}")
 
-                if p.result.error:
+                if p.result.error or p.result.rows:
                     logger.info(f"socketio - send - msg")
-                    socketio.emit('msg', {'timestamp': time.time(), 'dbms': self.dbms, 'error': p.result.error})
-
-                if p.result.rows:
-                    logger.info(f"socketio - send - msg")
-                    socketio.emit('msg', {'timestamp': time.time(), 'dbms': self.dbms, 'result': {'cols': p.result.cols, 'rows': p.result.rows}})
+                    socketio.emit('msg', {'timestamp': time.time(), 'dbms': self.dbms, 'error': p.result.error, 'result': {'cols': p.result.cols, 'rows': p.result.rows}})
 
                 if p.result.info:
                     logger.info(f"socketio - send - msg")

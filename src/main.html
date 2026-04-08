@@ -9,10 +9,14 @@
 
 <div id="app">
 
-    <button @click="onrequest">request !</button>
-    <div id="result">{{ result }}</div>
-
     <div id="connections">
+        <table class="table table-bordered">
+            <template v-for="info in connections">
+                <tr>
+                <td>{{info}}</td>
+                </tr>
+            </template>
+        </table>
     </div>
 
     <div id="queries">
@@ -35,20 +39,23 @@
                     <td class="query">
                         {{query.query}}
 
+                        <!-- results -->
                         <table class="table table-bordered" v-if="query.result">
                             <tr>
                                 <template v-for="col in query.result.cols">
-                                    <th>{{col}}</th>
+                                    <th>{{col.name}}</th>
                                 </template>
                             </tr>
                             <template v-for="row in query.result.rows">
                                 <tr>
                                     <template v-for="val in row">
-                                        <td>{{col}}</td>
+                                        <td>{{val}}</td>
                                     </template>
                                 </tr>
                             </template>
                         </table>
+
+                        <p style="background-color: red;" v-if="query.error">{{query.error}}</p>
 
                     </td>
                 </tr>
