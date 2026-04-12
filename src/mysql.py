@@ -28,11 +28,6 @@ class Mysql():
         query_length = query_length.to_bytes(3, 'little')
         return query_length + b"\x00\x16" + new_query
 
-    def print_debug(self, txt):
-        if self.debug:
-            print(f"{txt}")
-            logger.debug(txt)
-
 
     def parse_packet(self, pkt):
 
@@ -41,7 +36,6 @@ class Mysql():
         payload = pkt[4:]
 
         self.packet_type = self.get_packet_type(packet_number, payload_length, payload)
-        logging.debug(f"packet_type = {self.packet_type}")
 
         # packet is > 16mb
         if payload_length == 16777215:
@@ -245,7 +239,6 @@ class Mysql():
 
         #End field packets
 
-
         #row packets
         got_intermediate_eof = False
 
@@ -257,11 +250,6 @@ class Mysql():
             packet_number = payload[idx+3]
             response_code = payload[idx+4]
             idx += 4
-
-            #subpacket: response OK
-            if packet_length == 7 and payload[idx] == 0xfe:
-                break
-
 
             if packet_length < 8 and response_code == 0xfe:
                 if not got_intermediate_eof:
@@ -277,7 +265,7 @@ class Mysql():
                 row_null_buffer_len = 1
 
                 #first row_null_buffer byte
-                for x in [4,8,16,32,64,128]:                    
+                for x in [4,8,16,32,64,128]:
                     fields[idx_field]['is_null'] = payload[idx] & x == x
 
                     idx_field += 1

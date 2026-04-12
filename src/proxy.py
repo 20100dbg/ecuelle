@@ -82,15 +82,12 @@ class Proxy():
             if p.result.query:
                 query = p.result.query
                 pretty_query = Utils.clean_query(query)
-                logger.info(f"socketio - send - msg")
                 socketio.emit('msg', {'timestamp': time.time(), 'dbms': self.dbms, 'query': query, 'pretty_query': pretty_query})
 
             if p.result.parameters:
-                logger.info(f"socketio - send - msg")
                 socketio.emit('msg', {'timestamp': time.time(), 'dbms': self.dbms, 'parameters': p.result.parameters})
 
             if p.result.info:
-                logger.info(f"socketio - send - msg")
                 socketio.emit('msg', {'timestamp': time.time(), 'dbms': self.dbms, 'info': p.result.info})
 
             self.conn_server.send(data)
@@ -106,23 +103,18 @@ class Proxy():
             s.connect((server_host, server_port))
             self.conn_server = s
 
-            logger.info(f"{server_host}, {server_port}")
-
             while True:
                 data = s.recv(65535)
                 if not data:
                     break
 
                 p = Packet.init(self.dbms, data)
-
                 logger.info(f"C <- S : {p.packet_type}")
 
                 if p.result.error or p.result.rows:
-                    logger.info(f"socketio - send - msg")
                     socketio.emit('msg', {'timestamp': time.time(), 'dbms': self.dbms, 'error': p.result.error, 'result': {'cols': p.result.cols, 'rows': p.result.rows}})
 
                 if p.result.info:
-                    logger.info(f"socketio - send - msg")
                     socketio.emit('msg', {'timestamp': time.time(), 'dbms': self.dbms, 'info': p.result.info})
 
                 self.conn_client.send(data)
