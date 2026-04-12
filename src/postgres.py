@@ -79,10 +79,10 @@ class Postgres():
 
         for _ in range(field_count):
             idx2 = pkt.find(0, idx)
-            column_name = pkt[idx:idx2]
+            column_name = pkt[idx:idx2].decode()
+            oid_type = pkt[idx2+7:idx2+11]
 
-            field_names.append(column_name)
-            #print(f"column_name {column_name}")
+            field_names.append({'name': column_name, 'type': oid_type})
             idx = idx2 + 19
 
 
@@ -102,6 +102,7 @@ class Postgres():
 
             rows.append(row)
 
+        self.result.cols = field_names
         self.result.rows = rows
         self.result.nb_rows = len(rows)
 
