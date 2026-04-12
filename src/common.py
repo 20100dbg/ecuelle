@@ -28,12 +28,12 @@ class Utils():
 
     @staticmethod
     def clean_query(query):
-        query = re.sub("/*(.*)*/", "", query)
+        #query = re.sub("/*(.*)*/", "", query)
         return query.strip()
 
 
     @staticmethod
-    def print_hex(pkt):
+    def print_hex(pkt, show_line_number=False):
 
         def print_ascii(block):
             txt = ""
@@ -41,7 +41,7 @@ class Utils():
 
                 if idx == 8: txt += " "
 
-                if chr(block[idx]) in string.printable:
+                if chr(block[idx]) in string.printable and block[idx] not in [9,10,11,12,13]:
                     txt += chr(block[idx])
                 else:
                     txt += "."
@@ -50,23 +50,22 @@ class Utils():
             return txt
 
         def to_hex(block):
-            part1 = "".join(["{:02X} ".format(block[x]) for x in range(0, 8)])
-            part2 = "".join(["{:02X} ".format(block[x]) for x in range(8, 16)])
+            part1 = "".join(["{:02X} ".format(block[x]) for x in range(0, min(8, len(block)))])
+            part2 = "".join(["{:02X} ".format(block[x]) for x in range(8, len(block))])
             return part1 + "  " + part2
 
         line = 0
-        ret = "\n"
+        ret = ""
 
         for idx in range(0, len(pkt), 16):
 
             pkt_slice = pkt[idx:idx+16]
+            empty_placeholder = ' ' * (16 - len(pkt_slice)) * 3
 
-            if len(pkt_slice) < 16:
-                pkt_slice = pkt_slice + ((16 -len(pkt_slice)) * b' ')
+            if show_line_number:
+                ret += f"{(line*16):08x} "
 
-            #{(line*16):08x}
-            ret += f"{to_hex(pkt_slice)}  {print_ascii(pkt_slice)}\n"
-
+            ret += f"{to_hex(pkt_slice)}{empty_placeholder}  {print_ascii(pkt_slice)}\n"
             line += 1
 
         return ret + "\n"
