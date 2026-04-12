@@ -1,5 +1,5 @@
 
-CREATE TABLE exemple_types (
+CREATE TABLE data (
     id SERIAL PRIMARY KEY,
     petit_int SMALLINT,
     entier INTEGER,
@@ -27,7 +27,7 @@ CREATE TABLE exemple_types (
     donnees_bin BYTEA
 );
 
-INSERT INTO exemple_types (
+INSERT INTO data (
     petit_int,
     entier,
     grand_int,
@@ -80,7 +80,7 @@ VALUES (
     E'\\xDEADBEEF'
 );
 
-CREATE TABLE IF NOT EXISTS users (
+CREATE TABLE users (
     id SERIAL,
     name varchar(200),
     email varchar(200),
