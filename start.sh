@@ -12,6 +12,7 @@ for i in "$@"; do
       echo "  --docker-db\t\tStart a database server inside a docker"
       echo "  --password\t\tSet database password for default admin user"
       shift # past argument
+      exit 0
       ;;
     --dbms)
       DBMS="$2"
@@ -82,24 +83,31 @@ docker build -t ecuelle .
 if [ $DOCKER_DB ]; then
 
     echo Starting $DBMS database docker
+
     docker stop mysql_db postgres_db mssql_db 2>/dev/null 1>/dev/null
 
     if [ $DBMS = "mysql" ]; then
-        MYSQL_TAG=5.7
-        docker pull mysql:$MYSQL_TAG >/dev/null
-        docker run -d --rm --name mysql_db --network=ecuelle-network -v ./conf:/etc/mysql/conf.d --volume mysql_data:/var/lib/mysql -e MYSQL_ROOT_PASSWORD=$PASSWORD mysql:$MYSQL_TAG
+        TAG=5.7
+        USER=root
+        docker pull mysql:$TAG >/dev/null
+        docker run -d --rm --name mysql_db --network=ecuelle-network -v ./conf:/etc/mysql/conf.d --volume mysql_data:/var/lib/mysql -e MYSQL_ROOT_PASSWORD=$PASSWORD mysql:$TAG
 
     elif [ $DBMS = "postgres" ]; then
-        POSTGRES_TAG=14.22-alpine
-        POSTGRES_USER=postgres
-        docker pull postgres:$POSTGRES_TAG >/dev/null
-        docker run -d --rm --name postgres_db --network=ecuelle-network --volume postgres_data:/var/lib/postgresql/data -e POSTGRES_USER=$POSTGRES_USER -e POSTGRES_PASSWORD=$PASSWORD postgres:$POSTGRES_TAG
+        TAG=14.22-alpine
+        USER=postgres
+        docker pull postgres:$TAG >/dev/null
+        docker run -d --rm --name postgres_db --network=ecuelle-network --volume postgres_data:/var/lib/postgresql/data -e POSTGRES_USER=$USER -e POSTGRES_PASSWORD=$PASSWORD postgres:$TAG
         
     elif [ $DBMS = "mssql" ]; then
-        MSSQL_TAG=2017-latest
-        docker pull mcr.microsoft.com/mssql/server:$MSSQL_TAG >/dev/null
-        docker run -d --rm --name mssql_db --network=ecuelle-network -e ACCEPT_EULA=Y -e MSSQL_SA_PASSWORD=$PASSWORD mcr.microsoft.com/mssql/server:$MSSQL_TAG
+        TAG=2017-latest
+        USER=sa
+        docker pull mcr.microsoft.com/mssql/server:$TAG >/dev/null
+        docker run -d --rm --name mssql_db --network=ecuelle-network -e ACCEPT_EULA=Y -e MSSQL_SA_PASSWORD=$PASSWORD mcr.microsoft.com/mssql/server:$TAG
     fi
+
+    echo;
+    echo Creds : $USER / $PASSWORD
+    echo DBMS : $DBMS:$TAG
 fi
 
 echo;
@@ -112,5 +120,4 @@ docker run -it --name ecuelle --rm \
 -e PROXY_PORT=$PROXY_PORT -e DB_TYPE=$DBMS \
 -e SERVER_HOST=$SERVER_HOST -e SERVER_PORT=$SERVER_PORT \
 -p8080:80 -p$PROXY_PORT:$PROXY_PORT ecuelle:latest
-
 

@@ -1,80 +1,60 @@
 ## Ecuelle
 
-Ecuelle is a MySQL/PostgreSQL proxy.
+Ecuelle is a MySQL/PostgreSQL/MSSQL proxy.
+It logs and display in a Web UI intercepted queries and results.
 
+Please note this is a work-in-progress project, there is still a lot to do !
 
+### How to use
 
+The easiest is to use provided `start.sh` script.
+It will run ecuelle with default or custom settings, and can start a database server if needed.
 
+```
+Usage: start.sh --dbms <mysql,postgres,mssql> [--host IP/HOST] [--port PORT] [--listen PORT] [--docker-db]
+Options:
+  --dbms DBMS       Which DBMS to use: mysql, postgres or mssql
+  --host IP/HOST    Database IP/hostname to connect to (only if --docker-db is not set)
+  --port PORT       Database port to connect to (only if --docker-db is not set)
+  --listen PORT     Listening port for Ecuelle
+  --docker-db       Start a database server inside a docker
+  --password        Set database password for default admin user
 
+```
 
-docker network create -d bridge ecuelle-network
+Example: start Ecuelle as Mysql proxy and start Mysql server, with default settings
+```
+./start.sh --dbms mysql --docker-db
+```
 
-docker build -t ecuelle .
+### Setup client
 
-./start_db.sh
+Install dependencies
+```
+sudo apt install python3-dev default-libmysqlclient-dev build-essential pkg-config unixodbc libodbc2
+```
 
-
-docker run -it --name ecuelle --rm --mount type=bind,src=./src,dst=/app/src --network=ecuelle-network -e PROXY_PORT=3306 -e DB_TYPE=mysql -e SERVER_HOST=mysql_db -e SERVER_PORT=3306 -p8080:80 -p3306:3306 ecuelle:latest
-
-
-
-
-
-
-
-
-## Test environment
-
--s : IP/hostname of database server
--p : port the database server is listening on
-
-
-DB_TYPE : DBMS we want to use : mysql, postgres, mssql
-PROXY_PORT : the port we want the app to connect to. Default is : mysql=3306, postgres=5432, mssql=1433
-
-DB_TYPE=mysql PROXY_PORT=3306 docker compose --profile mysql run --remove-orphans --service-ports app -s mysql -p 3306
-
-DB_TYPE=postgres PROXY_PORT=5432 docker compose --profile postgres run --remove-orphans --service-ports app -s postgres -p 5432
-
-DB_TYPE=mssql PROXY_PORT=1433 docker compose --profile mssql run --remove-orphans --service-ports app -s mssql -p 1433
-
-
-
-## Setup client
-
-//sudo apt install python3-dev default-libmysqlclient-dev build-essential pkg-config unixodbc
-
-sudo apt install libodbc2 unixodbc
-
-
+Install python packages
+```
 python -m venv .venv
 source .venv/bin/activate
 pip install psycopg mysqlclient pyodbc
+```
 
+Start client
+```
 python client.py --dbms mysql --host 127.0.0.1 --port 3306 --user root --password my-secret-password --database sample
+```
 
+Another example
+```
 python client.py --dbms postgres --host 127.0.0.1 --port 5432 --user postgres --password my-secret-password --database postgres
+```
 
+### Populate database
 
-## Populate database
+`mysql -u root -h 127.0.0.1 -p < samples/mysql.sql`
 
-`mysql -u root -h 127.0.0.1 -p < sample.sql`
+`psql -h 127.0.0.1 -p 5432 -U postgres < samples/postgres.sql`
 
-`psql -h 127.0.0.1 -p 5432 -U postgres < sample_postgres.sql`
-
-`tsql -h 127.0.0.1 -p 5432 -U postgres < sample_postgres.sql`
-
-
-## Clean
-docker stop mysql_db postgres_db mssql_db
-docker rm mysql_db postgres_db mssql_db
-docker volume rm ecuelleXXXXXXX
-
-
-_____________________________
-
-
-docker pull postgres:16.13-alpine
-docker pull postgres:15.17-alpine
-docker pull postgres:14.22-alpine
-
+`tsql -h 127.0.0.1 -p 5432 -U postgres < samples/mssql.sql`
