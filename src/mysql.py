@@ -67,6 +67,9 @@ class Mysql():
         elif self.packet_type == Mysql.PacketType.PACKET_TABULAR_RESPONSE:
             self.parse_TABULAR_RESPONSE(payload)
 
+        elif self.packet_type == Mysql.PacketType.PACKET_USE:
+            self.parse_USE(payload)
+
 
     def get_packet_type(self, packet_number, payload_length, payload):
 
@@ -94,6 +97,10 @@ class Mysql():
             return Mysql.PacketType.PACKET_CLOSE
         elif packet_number == 0 and payload[0] == 0x01:
             return Mysql.PacketType.PACKET_QUIT
+        elif packet_number == 0 and payload[0] == 0x02:
+            return Mysql.PacketType.PACKET_USE
+        elif packet_number == 0 and payload[0] == 0x04:
+            return Mysql.PacketType.PACKET_SHOW
         else:
             return Mysql.PacketType.PACKET_UNKNOWN
 
@@ -193,6 +200,14 @@ class Mysql():
         schema = payload[idx+34:idx2].decode()
         
         self.result.info = {'username': username, 'schema': schema, 'password': password.hex()}
+
+    def parse_USE(self, payload):
+        logger.debug(f"database: {payload[1:]}")
+        self.result.info = {'database': payload[1:].decode()}
+
+    def parse_SHOW(self, payload):
+        logger.debug(f"show: {payload[1:-1]}")
+        self.result.info = {'show': payload[1:-1].decode()}
 
     def parse_TABULAR_RESPONSE(self, payload):
         
@@ -417,11 +432,20 @@ class Mysql():
             #Query
             else:
 
-                for i in range(len(fields)):
-                    field_length = payload[idx]
-                    val = payload[idx+1:idx+1+field_length].decode()
-                    row.append(val)
-                    idx += 1 + field_length
+                if packet_length == 1:
+                    row.append("")
+                    idx += 1
+
+                else:
+                    for i in range(len(fields)):
+                        field_length = payload[idx]
+                        val = payload[idx+1:idx+1+field_length]
+
+                        if field_length > 0:
+                            val = val.decode()
+
+                        row.append(val)
+                        idx += 1 + field_length
 
                 result.append(row)
 
@@ -511,4 +535,6 @@ class Mysql():
         PACKET_TABULAR_RESPONSE = 10
         PACKET_CLOSE = 11
         PACKET_QUIT = 12
+        PACKET_USE = 13
+        PACKET_SHOW = 14
         PACKET_UNKNOWN = 0xff
