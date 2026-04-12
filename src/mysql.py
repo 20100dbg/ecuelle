@@ -83,7 +83,7 @@ class Mysql():
             return Mysql.PacketType.PACKET_TABULAR_RESPONSE
         elif packet_number == 0 and (payload[0] == 0x0a or payload[0] == 0x09):
             return Mysql.PacketType.PACKET_HANDSHAKE
-        elif packet_number == 1:
+        elif packet_number == 1 and len(payload) > 200 and int.from_bytes(payload[4:8], "little") == 16777216 and payload[9:32] == bytes([0]*23):
             return Mysql.PacketType.PACKET_HANDSHAKE_RESPONSE
         elif packet_number == 2 and payload_length == 2:
             return Mysql.PacketType.PACKET_CACHING_SHA2
