@@ -1,62 +1,70 @@
 import argparse
-import psycopg
 import MySQLdb
-import pyodbc
+import psycopg
+#import pyodbc
+import mssql_python
 
-def run_postgres_query(config, query):
+
+def mysql_query(config, query):
+
+    with MySQLdb.connect(
+        host=config["host"],
+        user=config["user"],
+        passwd=config["password"],
+        db=config["database"],
+        port=config["port"]) as conn:
+
+        try:
+            with conn.cursor() as cur:
+                cur.execute(query)
+                return cur.fetchall()
+        except Exception as e:
+            print(e)
+
+
+def postgres_query(config, query):
     with psycopg.connect(
         host=config["host"],
         user=config["user"],
         password=config["password"],
         dbname=config["database"],
-        port=config["port"]
-    ) as conn:
-        with conn.cursor() as cur:
-            cur.execute(query)
-            return cur.fetchall()
+        port=config["port"]) as conn:
 
+        try:
+            with conn.cursor() as cur:
+                cur.execute(query)
+                return cur.fetchall()
+        except Exception as e:
+            print(e)
 
-def run_mysql_query(config, query):
-
-    conn = MySQLdb.connect(
-        host=config["host"],
-        user=config["user"],
-        passwd=config["password"],
-        db=config["database"],
-        port=config["port"]
-    )
-
-    try:
-        with conn.cursor() as cur:
-            cur.execute(query)
-            return cur.fetchall()
-    except Exception as e:
-        print(e)
-    finally:
-        conn.close()
-
-
-def run_mssql_query(config, query):
-    conn_str = (
-        "DRIVER={ODBC Driver 17 for SQL Server};"
+"""
+def mssql_query(config, query):
+    with pyodbc.connect("DRIVER={ODBC Driver 18 for SQL Server};"
         f"SERVER={config['host']};"
         f"PORT={config['port']};"
         f"DATABASE={config['database']};"
         f"UID={config['user']};"
-        f"PWD={config['password']}"
-    )
+        f"PWD={config['password']};"
+        f"Encrypt=No") as conn:
 
-    conn = pyodbc.connect(conn_str)
+        try:
+            with conn.cursor() as cur:
+                cur.execute(query)
+                return cur.fetchall()
+        except Exception as e:
+            print(e)
+"""
 
-    try:
-        cur = conn.cursor()
-        cur.execute(query)
-        rows = cur.fetchall()
-        cur.close()
-        return rows
-    finally:
-        conn.close()
+def mssql_query(config, query):
 
+    connection_string = f"SERVER={config['host']},{config['port']};DATABASE={config['database']};UID={config['user']};PWD={config['password']};Encrypt=No;"
+    with mssql_python.connect(connection_string) as conn:
+        try:
+            with conn.cursor() as cur:
+                cur.execute(query)
+                return cur.fetchall()
+        except Exception as e:
+            print(e)
 
 
 parser = argparse.ArgumentParser(description='')
@@ -81,8 +89,8 @@ while True:
     
     query = input("Query : ")
 
-    if args.dbms == "mysql": res = run_mysql_query(config, query)
-    elif args.dbms == "postgres": res = run_postgres_query(config, query)
-    elif args.dbms == "mssql": res = run_mssql_query(config, query)
+    if args.dbms == "mysql": res = mysql_query(config, query)
+    elif args.dbms == "postgres": res = postgres_query(config, query)
+    elif args.dbms == "mssql": res = mssql_query(config, query)
 
     print(res)

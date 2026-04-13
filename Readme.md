@@ -31,24 +31,24 @@ Example: start Ecuelle as Mysql proxy and start Mysql server, with default setti
 
 Install dependencies
 ```
-sudo apt install python3-dev default-libmysqlclient-dev build-essential pkg-config unixodbc libodbc2 freetds-bin
+sudo apt install python3-dev default-libmysqlclient-dev pkg-config
 ```
 
 Install python packages
 ```
 python -m venv .venv
 source .venv/bin/activate
-pip install psycopg mysqlclient pyodbc
+pip install psycopg mysqlclient mssql-python
 ```
 
 Start client
 ```
-python client.py --dbms mysql --host 127.0.0.1 --port 3306 --user root --password my-secret-password --database sample
+python client.py --dbms mysql --host 127.0.0.1 --port 3306 --user root --password my-secret-password123 --database sample
 ```
 
 Another example
 ```
-python client.py --dbms postgres --host 127.0.0.1 --port 5432 --user postgres --password my-secret-password --database postgres
+python client.py --dbms postgres --host 127.0.0.1 --port 5432 --user postgres --password my-secret-password123 --database postgres
 ```
 
 ### Populate database
