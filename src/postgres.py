@@ -67,7 +67,7 @@ class Postgres():
         message = pkt[idx+1:idx_end]
 
         #print(f"severity {severity}, text {text}, code {code}, message {message}")
-        self.result.error = message
+        self.result.error = message.decode()
 
 
     def parse_ROW_DESCRIPTION(self, pkt):
