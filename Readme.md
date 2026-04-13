@@ -31,7 +31,7 @@ Example: start Ecuelle as Mysql proxy and start Mysql server, with default setti
 
 Install dependencies
 ```
-sudo apt install python3-dev default-libmysqlclient-dev build-essential pkg-config unixodbc libodbc2
+sudo apt install python3-dev default-libmysqlclient-dev build-essential pkg-config unixodbc libodbc2 freetds-bin
 ```
 
 Install python packages
@@ -57,4 +57,7 @@ python client.py --dbms postgres --host 127.0.0.1 --port 5432 --user postgres --
 
 `psql -h 127.0.0.1 -p 5432 -U postgres < samples/postgres.sql`
 
-`tsql -h 127.0.0.1 -p 5432 -U postgres < samples/mssql.sql`
+```
+docker exec -it mssql_db /opt/mssql-tools/bin/sqlcmd -U sa -H 127.0.0.1 -Q "create database sample"
+docker exec -it mssql_db /opt/mssql-tools/bin/sqlcmd -U sa -H 127.0.0.1 -d sample -Q "$(cat samples/mssql.sql)"
+```

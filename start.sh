@@ -67,7 +67,7 @@ if [ -z $PROXY_PORT ]; then PROXY_PORT=$SERVER_PORT; fi
 
 if [ $DOCKER_DB ]; then
     SERVER_HOST="${DBMS}_db"
-    if [ -z $PASSWORD ]; then PASSWORD=my-secret-password; fi
+    if [ -z $PASSWORD ]; then PASSWORD=my-secret-password123; fi
 else
     if [ -z $SERVER_HOST ]; then echo "Without --docker-db, please set --host option"; exit 1; fi
 fi

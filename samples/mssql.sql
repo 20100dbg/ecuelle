@@ -1,6 +1,3 @@
-CREATE DATABASE IF NOT EXISTS sample;
-
-USE sample;
 
 CREATE TABLE data (
     -- Numeric types
@@ -92,15 +89,15 @@ INSERT INTO data VALUES (
 );
 
 
-CREATE TABLE IF NOT EXISTS users (
-    id int auto_increment primary key,
+CREATE TABLE users (
+    id INT NOT NULL IDENTITY(1, 1) PRIMARY KEY,
     name varchar(200),
     email varchar(200),
     password varchar(200)
 );
 
 INSERT INTO users VALUES 
-    (1, 'admin', 'admin@mail.net', 'password123'),
-    (2, 'user', 'user@mail.net', 'Secret1'),
-    (3, 'test', 'test@mail.net', 'lovamor1984');
+    ('admin', 'admin@mail.net', 'password123'),
+    ('user', 'user@mail.net', 'Secret1'),
+    ('test', 'test@mail.net', 'lovamor1984');
 
