@@ -267,7 +267,7 @@ class Mysql():
             idx += 4
 
             if packet_length < 8 and response_code == 0xfe:
-                if not got_intermediate_eof:
+                if not got_intermediate_eof and (idx + packet_length) < len(payload):
                     got_intermediate_eof = True
                     idx += 5
                     continue
