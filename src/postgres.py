@@ -21,21 +21,15 @@ class Postgres():
             logger.debug(f"pkt={Utils.print_hex(pkt)}")
 
 
-    def print_debug(self, txt):
-        if self.debug:
-            print(f"{txt}")
-
-
     def parse_packet(self, pkt):
         
-        #self.packet_type = Postgres.PacketType(pkt[0])
         self.packet_type = self.get_packet_type(pkt)
 
         if self.packet_type == Postgres.PacketType.PACKET_QUERY:
             payload_length = int.from_bytes(pkt[1:5], "big")
             query = pkt[5:-1].decode()
 
-            if query in ["BEGIN", "ROLLBACK"]:
+            if query in ["BEGIN", "ROLLBACK", "COMMIT"]:
                 query = ""
 
             self.result.query = query
