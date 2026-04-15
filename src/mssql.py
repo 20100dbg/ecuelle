@@ -21,14 +21,27 @@ class Mssql():
             logger.debug(f"pkt={Utils.print_hex(pkt)}")
 
 
-    def print_debug(self, txt):
-        if self.debug:
-            print(f"{txt}")
-
-
     def parse_packet(self, pkt):
-        pass
-        #Utils.print_hex(pkt)
+        self.packet_type = self.get_packet_type(pkt)
+
+        if self.packet_type == Mssql.PacketType.PACKET_BATCH:
+            self.parse_BATCH(pkt)
+
+
+    def get_packet_type(self, pkt):
+
+        if pkt[0] in [packet_type.value for packet_type in Mssql.PacketType]:
+            return Mssql.PacketType(pkt[0])
+
+        return Mssql.PacketType.PACKET_UNKNOWN
+
+
+    def parse_BATCH(self, pkt):
+        status = pkt[1]
+        packet_length = int.from_bytes(pkt[2:4], "big")
+        channel = int.from_bytes(pkt[4:6], "big")
+        packet_number = pkt[6]
+        
 
 
     class FieldType(Enum):
@@ -36,5 +49,9 @@ class Mssql():
         
 
     class PacketType(Enum):
-        PACKET_COMPLETION = 0x43
+        PACKET_BATCH = 0x01
+        PACKET_RESPONSE = 0x04
+        PACKET_TM_REQUEST = 0x0e
+        PACKET_PRELOGIN = 0x12
+        PACKET_UNKNOWN = 0xff
         

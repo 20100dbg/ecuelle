@@ -102,7 +102,7 @@ if [ $DOCKER_DB ]; then
         TAG=2017-latest
         USER=sa
         docker pull mcr.microsoft.com/mssql/server:$TAG >/dev/null
-        docker run -d --rm --name mssql_db --network=ecuelle-network -e ACCEPT_EULA=Y -e MSSQL_SA_PASSWORD=$PASSWORD mcr.microsoft.com/mssql/server:$TAG
+        docker run -d --rm --name mssql_db --network=ecuelle-network --volume mssql_data:/var/opt/mssql/data -e ACCEPT_EULA=Y -e MSSQL_SA_PASSWORD=$PASSWORD mcr.microsoft.com/mssql/server:$TAG
     fi
 
     echo;

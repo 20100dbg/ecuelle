@@ -1,9 +1,7 @@
 import argparse
 import MySQLdb
 import psycopg
-#import pyodbc
 import mssql_python
-
 
 def mysql_query(config, query):
 
@@ -36,24 +34,6 @@ def postgres_query(config, query):
                 return cur.fetchall()
         except Exception as e:
             print(e)
-
-"""
-def mssql_query(config, query):
-    with pyodbc.connect("DRIVER={ODBC Driver 18 for SQL Server};"
-        f"SERVER={config['host']};"
-        f"PORT={config['port']};"
-        f"DATABASE={config['database']};"
-        f"UID={config['user']};"
-        f"PWD={config['password']};"
-        f"Encrypt=No") as conn:
-
-        try:
-            with conn.cursor() as cur:
-                cur.execute(query)
-                return cur.fetchall()
-        except Exception as e:
-            print(e)
-"""
 
 def mssql_query(config, query):
 
