@@ -46,10 +46,10 @@ def request(params):
 
 class Packet():
     @staticmethod
-    def init(dbms, data):
-        if dbms == 'mysql' : return Mysql(data)
-        elif dbms == 'postgres' : return Postgres(data)
-        elif dbms == 'mssql' : return Mssql(data)
+    def init(dbms, data, previous_packet):
+        if dbms == 'mysql' : return Mysql(data, previous_packet)
+        elif dbms == 'postgres' : return Postgres(data, previous_packet)
+        elif dbms == 'mssql' : return Mssql(data, previous_packet)
         else : return None
 
 
@@ -59,6 +59,7 @@ class Proxy():
         self.dbms = dbms
         self.conn_client = client
         self.conn_server = None
+        self.previous_packet = None
         
         t = threading.Thread(target=self.listen_server,args=[server_host, server_port])
         t.start()
@@ -76,7 +77,7 @@ class Proxy():
             if not data:
                 break
 
-            p = Packet.init(self.dbms, data)
+            p = Packet.init(self.dbms, data, self.previous_packet)
             logger.info(f"C -> S : {p.packet_type}")
 
             if p.result.query:
@@ -90,6 +91,7 @@ class Proxy():
             if p.result.info:
                 socketio.emit('msg', {'timestamp': time.time(), 'dbms': self.dbms, 'info': p.result.info})
 
+            self.previous_packet = p.packet_type
             self.conn_server.send(data)
             
         self.conn_client.close()
@@ -108,7 +110,7 @@ class Proxy():
                 if not data:
                     break
 
-                p = Packet.init(self.dbms, data)
+                p = Packet.init(self.dbms, data, self.previous_packet)
                 logger.info(f"C <- S : {p.packet_type}")
 
                 if p.result.error or p.result.rows:
@@ -117,6 +119,7 @@ class Proxy():
                 if p.result.info:
                     socketio.emit('msg', {'timestamp': time.time(), 'dbms': self.dbms, 'info': p.result.info})
 
+                self.previous_packet = p.packet_type
                 self.conn_client.send(data)
 
 
