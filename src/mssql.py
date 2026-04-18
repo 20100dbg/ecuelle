@@ -3,6 +3,7 @@ from common import *
 from enum import Enum
 import logging
 import sys, traceback
+import datetime
 logger = logging.getLogger(__name__)
 
 class Mssql():
@@ -97,51 +98,66 @@ class Mssql():
 
             #usertype = pkt[idx:idx+4]
             #flags = pkt[idx+4:idx+6]
-            type = pkt[idx+6]
-            type_size = pkt[idx+7]
+            field_type = pkt[idx+6]
+            type_size = 0
+            scale = precision = table_name = None
 
-            if type not in [packet_type.value for packet_type in Mssql.FieldType]:
-                logger.debug(f"type unknown ({type})")
+            if field_type not in [packet_type.value for packet_type in Mssql.FieldType]:
+                logger.debug(f"type unknown ({field_type})")
 
-
-            if type in [Mssql.FieldType.FIELD_TYPE_BIT.value,
+            if field_type in [Mssql.FieldType.FIELD_TYPE_BIT.value,
                         Mssql.FieldType.FIELD_TYPE_INT.value,
                         Mssql.FieldType.FIELD_TYPE_FLOAT.value,
                         Mssql.FieldType.FIELD_TYPE_MONEY.value,
-                        Mssql.FieldType.FIELD_TYPE_TIME.value,
                         Mssql.FieldType.FIELD_TYPE_DATETIME.value,
-                        Mssql.FieldType.FIELD_TYPE_DATETIME2.value,
-                        Mssql.FieldType.FIELD_TYPE_DATETIMEOFFSET.value,
                         Mssql.FieldType.FIELD_TYPE_XML.value,
                         Mssql.FieldType.FIELD_TYPE_GUID.value]:
+                type_size = pkt[idx+7]
                 idx += 8
 
-            elif type in [Mssql.FieldType.FIELD_TYPE_DECIMAL.value,
+            elif field_type in [Mssql.FieldType.FIELD_TYPE_TIME.value,
+                          Mssql.FieldType.FIELD_TYPE_DATETIME2.value,
+                          Mssql.FieldType.FIELD_TYPE_DATETIMEOFFSET.value,
+                          ]:
+                scale = pkt[idx+7]
+                idx += 8
+
+            elif field_type in [Mssql.FieldType.FIELD_TYPE_DECIMAL.value,
                          Mssql.FieldType.FIELD_TYPE_NUMERIC.value]:
+                type_size = pkt[idx+7]
+                precision = pkt[idx+8]
+                scale = pkt[idx+9]
                 idx += 10
 
-            elif type in [Mssql.FieldType.FIELD_TYPE_DATE.value,
-                          Mssql.FieldType.FIELD_TYPE_INT4.value]:
+            elif field_type in [Mssql.FieldType.FIELD_TYPE_INT4.value]:
+                type_size = pkt[idx+7]
                 idx += 7
 
-            elif type in [Mssql.FieldType.FIELD_TYPE_BIGCHAR.value,
+            elif field_type in [Mssql.FieldType.FIELD_TYPE_DATE.value]:
+                idx += 7
+
+            elif field_type in [Mssql.FieldType.FIELD_TYPE_BIGCHAR.value,
                           Mssql.FieldType.FIELD_TYPE_BIGVARCHAR.value,
                           Mssql.FieldType.FIELD_TYPE_NCHAR.value,
                           Mssql.FieldType.FIELD_TYPE_NVARCHAR.value]:
+                type_size = int.from_bytes(pkt[idx+7:idx+9], "little")
                 idx += 14
 
-            elif type in [Mssql.FieldType.FIELD_TYPE_TEXT.value,
+            elif field_type in [Mssql.FieldType.FIELD_TYPE_TEXT.value,
                           Mssql.FieldType.FIELD_TYPE_NTEXT.value]:
+                type_size = int.from_bytes(pkt[idx+7:idx+11], "little")
                 idx += 27
 
-            elif type in [Mssql.FieldType.FIELD_TYPE_BIGBINARY.value,
+            elif field_type in [Mssql.FieldType.FIELD_TYPE_BIGBINARY.value,
                           Mssql.FieldType.FIELD_TYPE_BIGVARBIN.value]:
+                type_size = int.from_bytes(pkt[idx+7:idx+9], "little")
                 idx += 9
 
-            elif type == Mssql.FieldType.FIELD_TYPE_SSVARIANT.value:
+            elif field_type == Mssql.FieldType.FIELD_TYPE_SSVARIANT.value:
                 idx += 11
 
-            elif type == Mssql.FieldType.FIELD_TYPE_IMAGE.value:
+            elif field_type == Mssql.FieldType.FIELD_TYPE_IMAGE.value:
+                type_size = int.from_bytes(pkt[idx+7:idx+11], "little")
                 idx += 12
                 table_name_length = int.from_bytes(pkt[idx:idx+2], "little")
                 table_name = pkt[idx+2:idx+2+(table_name_length*2)].decode()
@@ -150,50 +166,48 @@ class Mssql():
 
             name_length = pkt[idx]
             idx += 1
-            name = pkt[idx:idx+(name_length*2)]
+            name = pkt[idx:idx+(name_length*2)].decode()
             idx += name_length*2
 
-            fields.append({'name': name, 'type': type, 'size': type_size})
-            print(f"name = {name.decode()}")
+            data = {'name': name, 'type': field_type, 'size': type_size}
+            if scale: data['scale'] = scale
+            if precision: data['precision'] = precision
+            
+            fields.append(data)
 
         while True:
 
-            if idx > len(pkt):
-                break
-
-            if pkt[idx] == 0xfd:
+            if idx >= len(pkt) or \
+                (idx+4 == len(pkt) and pkt[idx:] == b"\x00\x00\x00\x00") or \
+                pkt[idx] == 0xfd:
                 break
 
             idx += 1
 
-            print(Utils.hex(pkt[idx:idx+20]))
-
             row = []
             for i in range(len(fields)):
-
-                print(Mssql.FieldType(fields[i]['type']))
 
                 if fields[i]['type'] in [Mssql.FieldType.FIELD_TYPE_BIT.value,
                                          Mssql.FieldType.FIELD_TYPE_INT.value
                                         ]:
                     field_length = pkt[idx]
-                    print(f"bit/int field_length={field_length}")
                     field_value = int.from_bytes(pkt[idx+1:idx+1+field_length], "little")
                     idx += 1
+
+                elif fields[i]['type'] in [Mssql.FieldType.FIELD_TYPE_INT4.value]:
+                    field_length = 4
+                    field_value = int.from_bytes(pkt[idx:idx+field_length], "little")
 
                 elif fields[i]['type'] in [Mssql.FieldType.FIELD_TYPE_DECIMAL.value, 
                                            Mssql.FieldType.FIELD_TYPE_NUMERIC.value]:
                     field_length = 4
                     sign = pkt[idx+1]
-
                     field_value = struct.unpack("<i", pkt[idx+2:idx+2+field_length])[0] / 100
                     idx += 2
 
-                elif fields[i]['type'] in [Mssql.FieldType.FIELD_TYPE_FLOAT.value,
-                                           Mssql.FieldType.FIELD_TYPE_MONEY.value,
-                                          ]:
+                elif fields[i]['type'] == Mssql.FieldType.FIELD_TYPE_FLOAT.value:
+                    field_length = pkt[idx]
                     field_length = fields[i]['size']
-                    print(f"{Utils.hex(pkt[idx+1:idx+1+field_length])}")
 
                     if field_length == 4:
                         field_value = struct.unpack("<f", pkt[idx+1:idx+1+field_length])[0]
@@ -201,42 +215,168 @@ class Mssql():
                         field_value = struct.unpack("<d", pkt[idx+1:idx+1+field_length])[0]
 
                     idx += 1
+                
+                elif fields[i]['type'] == Mssql.FieldType.FIELD_TYPE_MONEY.value:
+                    field_length = pkt[idx]
+                    field_length = fields[i]['size']
+                    idx += 1
+
+                    if field_length == 8:
+                        idx += 4
+                        field_length = 4
+
+                    field_value = struct.unpack("<I", pkt[idx:idx+field_length])[0] / 10000
+
 
                 elif fields[i]['type'] in [Mssql.FieldType.FIELD_TYPE_DATE.value]:
                     field_length = pkt[idx]
-                    #09/04/2026
-                    field_value = Utils.hex(pkt[idx+1:idx+1+field_length])
+
+                    tmp = pkt[idx+1:idx+1+field_length]
+                    days = int.from_bytes(tmp, byteorder='little', signed=False)
+                    field_value = datetime.date(1, 1, 1) + datetime.timedelta(days=days)
+                    field_value = str(field_value)
                     idx += 1
 
                 elif fields[i]['type'] in [Mssql.FieldType.FIELD_TYPE_TIME.value]:
                     field_length = pkt[idx]
-                    #52200.0000000 seconds
-                    field_value = Utils.hex(pkt[idx+1:idx+1+field_length])
+                    seconds = int.from_bytes(pkt[idx+1:idx+1+field_length], "little") / 10000000
+                    seconds = int(seconds)
+                    field_value = datetime.timedelta(seconds=seconds)
+                    field_value = str(field_value)
                     idx += 1
 
-                elif fields[i]['type'] in [Mssql.FieldType.FIELD_TYPE_DATETIME.value,
-                                           Mssql.FieldType.FIELD_TYPE_DATETIME2.value,
-                                           Mssql.FieldType.FIELD_TYPE_DATETIMEOFFSET.value]:
+                elif fields[i]['type'] == Mssql.FieldType.FIELD_TYPE_DATETIME.value:
                     field_length = pkt[idx]
-                    #2026-09-04 16:30:54
-                    field_value = Utils.hex(pkt[idx+1:idx+1+field_length])
                     idx += 1
+
+                    if field_length == 8:
+                        days = int.from_bytes(pkt[idx:idx+4], byteorder='little', signed=False)
+                        time_units = int.from_bytes(pkt[idx+4:idx+8], byteorder='little', signed=False)
+                        seconds = time_units / 300.0
+                        field_value = datetime.datetime(1900, 1, 1) + datetime.timedelta(days=days, seconds=seconds)
+                    
+                    elif field_length == 4:
+                        days = int.from_bytes(pkt[idx:idx+2], byteorder='little', signed=False)
+                        minutes = int.from_bytes(pkt[idx+2:idx+4], byteorder='little', signed=False)
+                        field_value = datetime.datetime(1900, 1, 1) + datetime.timedelta(days=days, minutes=minutes)
+
+                    field_value = str(field_value)
+
+                elif fields[i]['type'] == Mssql.FieldType.FIELD_TYPE_DATETIME2.value:
+                    field_length = pkt[idx]
+                    idx += 1
+
+                    time_length = field_length - 3
+                    time_units = pkt[idx:idx+time_length]
+                    days = pkt[idx+time_length:idx+field_length]
+
+                    time_units = int.from_bytes(time_units, byteorder='little', signed=False)
+                    seconds = time_units / (10 ** fields[i]['scale'])
+
+                    days = int.from_bytes(days, byteorder='little', signed=False)
+                    field_value = datetime.datetime.combine(datetime.date(1, 1, 1) + datetime.timedelta(days=days, seconds=seconds), datetime.datetime.min.time())
+                    field_value = str(field_value)
+
+                elif fields[i]['type'] == Mssql.FieldType.FIELD_TYPE_DATETIMEOFFSET.value:
+
+                    field_length = pkt[idx]
+                    idx += 1
+
+                    dt2_bytes = pkt[idx+field_length-2:idx+field_length]
+                    offset_minutes = int.from_bytes(dt2_bytes, byteorder='little', signed=True)
+
+                    time_length = len(dt2_bytes) - 3
+                    time_bytes = dt2_bytes[:time_length]
+                    date_bytes = dt2_bytes[time_length:]
+
+                    time_units = int.from_bytes(time_bytes, byteorder='little', signed=False)
+                    seconds = time_units / (10 ** fields[i]['scale'])
+
+                    days = int.from_bytes(date_bytes, byteorder='little', signed=False)
+                    base_date = datetime.date(1, 1, 1)
+
+                    dt = datetime.datetime.combine(base_date + datetime.timedelta(days=days), datetime.datetime.min.time())
+                    dt += datetime.timedelta(seconds=seconds)
+
+                    tz = datetime.timezone(datetime.timedelta(minutes=offset_minutes))
+                    field_value = dt.replace(tzinfo=tz)
+                    field_value = str(field_value)
+
 
                 elif fields[i]['type'] in [Mssql.FieldType.FIELD_TYPE_BIGCHAR.value,
+                                           Mssql.FieldType.FIELD_TYPE_NCHAR.value,
+                                           Mssql.FieldType.FIELD_TYPE_NVARCHAR.value,
                                            Mssql.FieldType.FIELD_TYPE_BIGVARCHAR.value,
                                           ]:
                     field_length = int.from_bytes(pkt[idx:idx+2], "little")
-                    field_value = pkt[idx+2:idx+2+field_length]
-                    idx += 2
+                    
+                    if fields[i]['size'] == 65535:
+                        field_value = pkt[idx+12:idx+12+field_length].decode()
+                        idx += 12 + 4
+                    else:
+                        field_value = pkt[idx+2:idx+2+field_length].decode()
+                        idx += 2
+
+
+                elif fields[i]['type'] in [Mssql.FieldType.FIELD_TYPE_TEXT.value,
+                                           Mssql.FieldType.FIELD_TYPE_NTEXT.value,
+                                           Mssql.FieldType.FIELD_TYPE_IMAGE.value
+                                          ]:
+                    textptr_length = pkt[idx]
+                    idx += 1 + textptr_length + 8
+                    field_length = int.from_bytes(pkt[idx:idx+4], "little")
+                    field_value = pkt[idx+4:idx+4+field_length]
+
+                    if fields[i]['type'] == Mssql.FieldType.FIELD_TYPE_IMAGE.value:
+                        field_value = Utils.hex(field_value)
+                    else:
+                        field_value = field_value.decode()
+
+                    idx += 4
+
+                elif fields[i]['type'] in [Mssql.FieldType.FIELD_TYPE_BIGBINARY.value,
+                                           Mssql.FieldType.FIELD_TYPE_BIGVARBIN.value,
+                                           ]:
+                    if fields[i]['size'] == 65535:
+                        field_length = int.from_bytes(pkt[idx:idx+8], "little")
+                        chunk_length = int.from_bytes(pkt[idx+8:idx+12], "little")
+                        field_value = pkt[idx+12:idx+12+field_length]
+                        idx += 12 + 4
+                    else:
+                        field_length = int.from_bytes(pkt[idx:idx+2], "little")
+                        idx += 2
+                        field_value = pkt[idx:idx+field_length]
+
+                    field_value = Utils.hex(field_value)
+
+                elif fields[i]['type'] == Mssql.FieldType.FIELD_TYPE_XML.value:
+                    plp_length = struct.unpack("<q", pkt[idx:idx+8])
+                    field_length = int.from_bytes(pkt[idx+8:idx+12], "little")
+                    field_value = pkt[idx+12:idx+12+field_length].decode()
+                    idx += 12 + 4
+
+                elif fields[i]['type'] == Mssql.FieldType.FIELD_TYPE_GUID.value:
+                    field_length = pkt[idx]
+                    tmp = pkt[idx+1:idx+1+field_length]                    
+                    field_value = f"{Utils.rev(tmp[0:4]).hex()}-{Utils.rev(tmp[4:6]).hex()}-{Utils.rev(tmp[6:8]).hex()}-{tmp[8:10].hex()}-{tmp[10:].hex()}"
+
+                    idx += 1
+
+                elif fields[i]['type'] == Mssql.FieldType.FIELD_TYPE_SSVARIANT.value:
+                    field_length = int.from_bytes(pkt[idx:idx+4], "little")
+                    idx += 4 + 8 + 1
+                    field_value = pkt[idx:idx+field_length]
 
                 else:
                     field_length = 0
                     field_value = ""
 
 
-
+                print(f"type={Mssql.FieldType(fields[i]['type'])}")
+                print(f"field_length={field_length}")
                 print(f"field_value={field_value}")
                 print()
+
                 idx += field_length
                 row.append(field_value)
 

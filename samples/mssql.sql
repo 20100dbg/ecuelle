@@ -39,8 +39,8 @@ CREATE TABLE data (
 
     -- Other
     UniqueIdCol UNIQUEIDENTIFIER,
-    XmlCol XML,
-    SqlVariantCol SQL_VARIANT
+    XmlCol XML
+    --SqlVariantCol SQL_VARIANT
 );
 
 
@@ -84,8 +84,8 @@ INSERT INTO data VALUES (
 
     -- Other
     NEWID(),                -- UNIQUEIDENTIFIER
-    '<root><value>XML</value></root>',
-    'Sample SQL_VARIANT'
+    '<root><value>XML</value></root>' 
+    --'Sample SQL_VARIANT'
 );
 
 
