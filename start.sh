@@ -84,7 +84,7 @@ if [ $DOCKER_DB ]; then
 
     echo Starting $DBMS database docker
 
-    docker stop mysql_db postgres_db mssql_db 2>/dev/null 1>/dev/null
+    #docker stop mysql_db postgres_db mssql_db 2>/dev/null 1>/dev/null
 
     if [ $DBMS = "mysql" ]; then
         TAG=5.7

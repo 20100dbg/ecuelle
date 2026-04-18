@@ -1,46 +1,23 @@
 Proxy
 
-- edit handshake to force disable SSL
-
 - loop on recv if len(data) == max data
 
-- check mysql client capabilities
+- work on Vue
+- add Pure.css
 
 - sql color syntax : https://github.com/scriptcoded/sql-highlight
--- format SQL
 -- replace ? with params
 -- delete /**/ comments + trim()
 
+- MSSQL
+-- fix datetime2
+-- fix datetimeoffset
+-- support SQL_VARIANT ?
+
 - TLS support
 
-- mysql PACKET_OK
--- handle len(payload) > 7
-
-- mysql
--- test return many rows
--- test named parameters
-
-
-- display table, columns :
--- timestamp
--- IP:port
--- affected_rows / len(rows)
--- state (ok / error)
--- show original / pretty query
--- actions
---- ignore query
----- as is
----- with these parameters
---- 
-
-Known bugs :
-- with mysql, classic query, if first field is empty (select ""), response is detected as prepared statement, resulting in crash
-
-
-# postgresql
-https://docs.postgresql.fr/14/protocol.html
-
-# MSSQL
-# 2025, 2022, 2019, 2017
-docker pull mcr.microsoft.com/mssql/server:2025-latest
-
+- Tests:
+-- mysql 4 ?
+-- mariadb
+-- postgresql 14-18
+-- mssql 2017-2025

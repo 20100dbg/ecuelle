@@ -20,6 +20,10 @@ class Result():
 
 class Utils():
 
+    @staticmethod
+    def rev(data):
+        return data[::-1]
+
     @staticmethod  
     def to_hex(data):
         if type(data) is int:
@@ -31,6 +35,9 @@ class Utils():
         #query = re.sub("/*(.*)*/", "", query)
         return query.strip()
 
+    @staticmethod
+    def hex(pkt):
+        return "".join(["{:02X} ".format(x) for x in pkt])
 
     @staticmethod
     def print_hex(pkt, show_line_number=False):
