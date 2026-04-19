@@ -274,7 +274,7 @@ class Mssql():
                     seconds = time_units / (10 ** fields[i]['scale'])
 
                     days = int.from_bytes(days, byteorder='little', signed=False)
-                    field_value = datetime.datetime.combine(datetime.date(1, 1, 1) + datetime.timedelta(days=days, seconds=seconds), datetime.datetime.min.time())
+                    field_value = datetime.datetime(1, 1, 1) + datetime.timedelta(days=days, seconds=seconds)
                     field_value = str(field_value)
 
                 elif fields[i]['type'] == Mssql.FieldType.FIELD_TYPE_DATETIMEOFFSET.value:
@@ -282,24 +282,25 @@ class Mssql():
                     field_length = pkt[idx]
                     idx += 1
 
-                    dt2_bytes = pkt[idx+field_length-2:idx+field_length]
-                    offset_minutes = int.from_bytes(dt2_bytes, byteorder='little', signed=True)
+                    print(f"raw {Utils.hex(pkt[idx:idx+field_length])}")
 
-                    time_length = len(dt2_bytes) - 3
+                    offset_minutes = pkt[idx+field_length-2:idx+field_length]
+                    offset_minutes = int.from_bytes(offset_minutes, byteorder='little', signed=True)
+                    dt2_bytes = pkt[idx:idx+field_length-2]
+
+                    time_length = field_length - 5
                     time_bytes = dt2_bytes[:time_length]
                     date_bytes = dt2_bytes[time_length:]
 
                     time_units = int.from_bytes(time_bytes, byteorder='little', signed=False)
                     seconds = time_units / (10 ** fields[i]['scale'])
-
                     days = int.from_bytes(date_bytes, byteorder='little', signed=False)
-                    base_date = datetime.date(1, 1, 1)
 
-                    dt = datetime.datetime.combine(base_date + datetime.timedelta(days=days), datetime.datetime.min.time())
-                    dt += datetime.timedelta(seconds=seconds)
+                    tzinfo = datetime.timezone(datetime.timedelta(minutes=offset_minutes))
+                    delta = datetime.timedelta(days=days, seconds=seconds)
 
-                    tz = datetime.timezone(datetime.timedelta(minutes=offset_minutes))
-                    field_value = dt.replace(tzinfo=tz)
+                    field_value = datetime.datetime(1, 1, 1) + delta
+                    field_value.replace(tzinfo=tzinfo)
                     field_value = str(field_value)
 
 
