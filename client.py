@@ -48,14 +48,31 @@ def mssql_query(config, query):
 
 
 parser = argparse.ArgumentParser(description='')
-parser.add_argument('--dbms', type=str, required=True)
-parser.add_argument('--host', type=str, required=True)
-parser.add_argument('--port', type=int, required=True)
-parser.add_argument('--user', type=str, required=True)
-parser.add_argument('--password', type=str, required=True)
-parser.add_argument('--database', type=str, required=True)
+parser.add_argument('--dbms', type=str, choices=["mysql", "postgres", "mssql"], required=True)
+parser.add_argument('--host', type=str)
+parser.add_argument('--port', type=int)
+parser.add_argument('--user', type=str)
+parser.add_argument('--password', type=str)
+parser.add_argument('--database', type=str)
+parser.add_argument('--test', action="store_true", default=False)
 
 args = parser.parse_args()
+
+if not args.host: args.host = "127.0.0.1"
+if not args.password: args.password = "my-secret-password123"
+if not args.database: args.database = "sample"
+
+if args.dbms == "mysql":
+    if not args.port: args.port = 3306
+    if not args.user: args.user = "root"
+
+if args.dbms == "postgres":
+    if not args.port: args.port = 5432
+    if not args.user: args.user = "postgres"
+
+if args.dbms == "mssql":
+    if not args.port: args.port = 1422
+    if not args.user: args.user = "sa"
 
 config = {
     "host": args.host,
@@ -65,12 +82,30 @@ config = {
     "port": args.port,
 }
 
-while True:
-    
-    query = input("Query : ")
+if not args.test:
 
-    if args.dbms == "mysql": res = mysql_query(config, query)
-    elif args.dbms == "postgres": res = postgres_query(config, query)
-    elif args.dbms == "mssql": res = mssql_query(config, query)
+    while True:
+        query = input("Query : ")
+        if not query and last_query:
+            query = last_query
 
-    print(res)
+        if args.dbms == "mysql": res = mysql_query(config, query)
+        elif args.dbms == "postgres": res = postgres_query(config, query)
+        elif args.dbms == "mssql": res = mssql_query(config, query)
+
+        last_query = query
+        print(res)
+
+else:
+
+    queries = [
+        "SELECT * FROM users;",
+        "SELECT * FROM data;",
+        "SELECT * FROM NOT_A_TABLE;"
+    ]
+
+    for query in queries:
+        if args.dbms == "mysql": res = mysql_query(config, query)
+        elif args.dbms == "postgres": res = postgres_query(config, query)
+        elif args.dbms == "mssql": res = mssql_query(config, query)
+        print(res)
