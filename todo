@@ -10,11 +10,14 @@ Proxy
 -- delete /**/ comments + trim()
 
 - MSSQL
--- fix datetime2
--- fix datetimeoffset
 -- support SQL_VARIANT ?
 
 - TLS support
+
+- add a test mode in client.py
+-- run select * from users
+-- run select * from data
+-- run a bogus query
 
 - Tests:
 -- mysql 4 ?
