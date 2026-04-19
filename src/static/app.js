@@ -6,9 +6,29 @@ createApp({
       connections: [],
       //{ip:"", port:"", hash:"", salt:""}
       
-      queries: [],
+      _queries: [],
       //{query: "", error:"XXXX/false", result:{cols:[], rows:[]}}
+
+      filterQuery: '',
     }),
+
+    computed: {
+
+      queries() {
+        let result = [];
+
+        for (let i = this._queries.length - 1; i >= 0; i--) {
+          
+          if (this.filterQuery && !this._queries[i].query.toLowerCase().includes(this.filterQuery.toLowerCase())) {
+            continue;
+          }
+          result.push(this._queries[i]);
+        }
+        return result;
+      }
+
+
+    },
 
     created() {
       socket.on("connect", () => { console.log('connected'); });
@@ -22,12 +42,12 @@ createApp({
 
         if (msg.query) {
           let q = {'query': msg.query, 'result': ''}
-          this.queries.push(q)
+          this._queries.push(q)
         }
 
         if (msg.result) {
-          this.queries[this.queries.length-1]['result'] = msg.result;
-          this.queries[this.queries.length-1]['error'] = msg.error;
+          this._queries[this._queries.length-1]['result'] = msg.result;
+          this._queries[this._queries.length-1]['error'] = msg.error;
         }
       });
     },

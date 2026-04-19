@@ -1,51 +1,79 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Ecuelle</title>
-<link rel="stylesheet" href="static/bootstrap.min.css">
+<link rel="stylesheet" href="static/bulma.min.css">
+<link rel="stylesheet" href="static/style.css">
 </head>
 <body>
 
-<div id="app">
+<nav class="navbar has-background-primary-10" role="navigation" aria-label="main navigation">
+    
+    <div class="navbar-brand">
+        <!-- navbar items, navbar burger... -->
+    </div>
+    <div id="navbarBasicExample" class="navbar-menu">
+        <div class="navbar-start">
+    
+          <div class="navbar-item">
+            <div class="buttons">
+              <a class="button is-primary">Clear</a>
+              <a class="button is-primary">Reverse order</a>
+            </div>
+          </div>
+        </div>
+    </div>
 
-    <div id="connections">
-        <table class="table table-bordered">
+    <div class="navbar-end">
+      <div class="navbar-item">
+        <div class="buttons">
+            <p>State</p>
+            <p>Nb query</p>
+        </div>
+      </div>
+  </div>
+</nav>
+
+<div id="app">
+    <section class="container">
+    
+    <br>
+    <details>
+        <summary>Connections data</summary>
+        <p>
+        <table class="table">
             <template v-for="info in connections">
                 <tr>
                 <td>{{info}}</td>
                 </tr>
             </template>
         </table>
-    </div>
+        </p>
+    </details>
 
-    <div id="queries">
-        <table class="table table-bordered">
+    <div>
+    <table class="table">
+    <template v-for="query in queries">
+        <tr>
+            <td>
+                {{query.query}}
+                <p style="background-color: red;" v-if="query.error">{{query.error}}</p>
 
-            <template v-for="query in queries">
-                <tr>
-                    <td class="tiny">
-                        <div class="dropdown">
-                            <button class="btn btn-default dropdown-toggle btn-xs" type="button">
-                                >
-                            </button>
-                            <ul class="dropdown-menu">
-                                <li><a href="#">Option 1</a></li>
-                                <li><a href="#">Option 2</a></li>
-                            </ul>
-                        </div>
-                    </td>
-
-                    <td class="query">
-                        {{query.query}}
-
-                        <!-- results -->
-                        <table class="table table-bordered" v-if="query.result">
+                <!-- results -->
+                <details v-if="query.result.nb_rows > 0">
+                    <summary>Result: {{query.result.nb_rows}} rows</summary>
+                    <p>
+                    <table class="table" >
+                        <thead>
                             <tr>
-                                <template v-for="col in query.result.cols">
-                                    <th>{{col.name}}</th>
-                                </template>
+                            <template v-for="col in query.result.cols">
+                                <th>{{col.name}}</th>
+                            </template>
                             </tr>
+                        </thead>
+                        <tbody>
                             <template v-for="row in query.result.rows">
                                 <tr>
                                     <template v-for="val in row">
@@ -53,21 +81,23 @@
                                     </template>
                                 </tr>
                             </template>
-                        </table>
+                        </tbody>
+                    </table>
+                    </p>
+                </details>
 
-                        <p style="background-color: red;" v-if="query.error">{{query.error}}</p>
-
-                    </td>
-                </tr>
-            </template>
-        </table>
-
+            </td>
+        </tr>
+    </template>
+    </table>
     </div>
-</div>
+    
+    </section>
+
+</div> <!-- app -->
 
 <script src="static/socket.io.min.js" type="application/javascript"></script>
 <script src="static/vue.global.js"></script>
-<!--script src="static/bootstrap.min.js" type="application/javascript"></script-->
 <script src="static/app.js"></script>
 
 </body>
