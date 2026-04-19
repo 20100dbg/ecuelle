@@ -7,11 +7,12 @@ logger = logging.getLogger(__name__)
 
 class Postgres():
 
-    def __init__(self, pkt):
+    def __init__(self, pkt, previous_packet):
         self.pkt = pkt
         self.result = Result()
         self.debug = True
         self.packet_type = None
+        self.previous_packet = previous_packet
 
         try:
             self.parse_packet(pkt)

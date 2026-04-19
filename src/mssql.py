@@ -85,14 +85,10 @@ class Mssql():
         nb_columns = int.from_bytes(pkt[9:11], "little")
         result = []
 
-        print(f"nb_columns = {nb_columns}")
-
         idx = 11
         fields = []
 
         row_count = int.from_bytes(pkt[-8:], "little")
-        print(f"row_count = {row_count}")
-        print()
 
         for _ in range(nb_columns):
 
@@ -282,8 +278,6 @@ class Mssql():
                     field_length = pkt[idx]
                     idx += 1
 
-                    print(f"raw {Utils.hex(pkt[idx:idx+field_length])}")
-
                     offset_minutes = pkt[idx+field_length-2:idx+field_length]
                     offset_minutes = int.from_bytes(offset_minutes, byteorder='little', signed=True)
                     dt2_bytes = pkt[idx:idx+field_length-2]
@@ -372,12 +366,6 @@ class Mssql():
                     field_length = 0
                     field_value = ""
 
-
-                print(f"type={Mssql.FieldType(fields[i]['type'])}")
-                print(f"field_length={field_length}")
-                print(f"field_value={field_value}")
-                print()
-
                 idx += field_length
                 row.append(field_value)
 
@@ -386,6 +374,7 @@ class Mssql():
 
         self.result.cols = fields
         self.result.rows = result
+        self.result.nb_rows = len(result)
 
 
     class FieldType(Enum):
