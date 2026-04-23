@@ -2,25 +2,51 @@ Proxy
 
 - loop on recv if len(data) == max data
 
-- work on Vue
-- add Pure.css
+- work on frontend
+- detect/retrieve handshake postgre and mssql
 
 - sql color syntax : https://github.com/scriptcoded/sql-highlight
 -- replace ? with params
 -- delete /**/ comments + trim()
+
+- mysql
+-- send whole packet to parse_* methods
+
+- max nb lines
 
 - MSSQL
 -- support SQL_VARIANT ?
 
 - TLS support
 
-- add a test mode in client.py
--- run select * from users
--- run select * from data
--- run a bogus query
+- add "parsing error" message
+-- show in "result" summary
+
+- client(s)
+-- prepared statement client-side & server-side
+-- run_tests.sh
+--- run .py, .php, mysql client
 
 - Tests:
--- mysql 4 ?
+-- mysql
+--- mysql:5.7
+--- mysql:8.4
+--- mysql:9.6
+
 -- mariadb
--- postgresql 14-18
--- mssql 2017-2025
+--- mariadb:10.6
+--- mariadb:11.4
+--- mariadb:12.3
+
+-- postgresql
+--- postgres:14.22
+--- postgres:15.17
+--- postgres:16.13
+--- postgres:17.9
+--- postgres:18.3
+
+-- mssql
+--- mcr.microsoft.com/mssql/server:2017-latest
+--- mcr.microsoft.com/mssql/server:2019-latest
+--- mcr.microsoft.com/mssql/server:2022-latest
+--- mcr.microsoft.com/mssql/server:2025-latest

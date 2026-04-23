@@ -88,8 +88,8 @@ class Proxy():
             if p.result.parameters:
                 socketio.emit('msg', {'timestamp': time.time(), 'dbms': self.dbms, 'parameters': p.result.parameters})
 
-            if p.result.info:
-                socketio.emit('msg', {'timestamp': time.time(), 'dbms': self.dbms, 'info': p.result.info})
+            if p.result.connection:
+                socketio.emit('msg', {'timestamp': time.time(), 'dbms': self.dbms, 'connection': p.result.connection})
 
             self.previous_packet = p.packet_type
             self.conn_server.send(data)
@@ -114,10 +114,14 @@ class Proxy():
                 logger.info(f"C <- S : {p.packet_type}")
 
                 if p.result.error or p.result.rows:
-                    socketio.emit('msg', {'timestamp': time.time(), 'dbms': self.dbms, 'error': p.result.error, 'result': {'cols': p.result.cols, 'rows': p.result.rows, 'nb_rows': p.result.nb_rows}})
+                    socketio.emit('msg', {'timestamp': time.time(), 'dbms': self.dbms, 'error': p.result.error, 
+                        'result': {'cols': p.result.cols, 'rows': p.result.rows, 'nb_rows': p.result.nb_rows}})
 
-                if p.result.info:
-                    socketio.emit('msg', {'timestamp': time.time(), 'dbms': self.dbms, 'info': p.result.info})
+                if p.result.connection:
+                    socketio.emit('msg', {'timestamp': time.time(), 'dbms': self.dbms, 'connection': p.result.connection})
+
+                if p.result.app_error:
+                    socketio.emit('msg', {'timestamp': time.time(), 'dbms': self.dbms, 'app_error': p.result.app_error})
 
                 self.previous_packet = p.packet_type
                 self.conn_client.send(data)

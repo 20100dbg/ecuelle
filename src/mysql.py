@@ -20,7 +20,10 @@ class Mysql():
         except Exception as e:
             traceback.print_exc(file=sys.stdout)
             logger.debug(f"parse_packet Exception : {e}")
-            logger.debug(f"pkt={Utils.print_hex(pkt)}")
+            logger.debug(f"pkt=\n{Utils.print_hex(pkt)}")
+
+            if self.previous_packet == Mysql.PacketType.PACKET_QUERY:
+                self.result.app_error = True
 
     #@staticmethod
     def replace_query(self, new_query):
@@ -84,7 +87,8 @@ class Mysql():
             return Mysql.PacketType.PACKET_TABULAR_RESPONSE
         elif packet_number == 0 and (payload[0] == 0x0a or payload[0] == 0x09):
             return Mysql.PacketType.PACKET_HANDSHAKE
-        elif packet_number == 1 and len(payload) > 200 and int.from_bytes(payload[4:8], "little") == 16777216 and payload[9:32] == bytes([0]*23):
+        elif packet_number == 1 and self.previous_packet == Mysql.PacketType.PACKET_HANDSHAKE:
+        # len(payload) > 200 and int.from_bytes(payload[4:8], "little") == 16777216 and payload[9:32] == bytes([0]*23):
             return Mysql.PacketType.PACKET_HANDSHAKE_RESPONSE
         elif packet_number == 2 and payload_length == 2:
             return Mysql.PacketType.PACKET_CACHING_SHA2
@@ -142,8 +146,6 @@ class Mysql():
             server_status = int.from_bytes(payload[3:4], "little")
             warnings = int.from_bytes(payload[5:6], "little")
 
-            self.result.info = {'server_status': server_status, 'warnings': warnings}
-
 
     def parse_ERR(self, payload):
         error_code = int.from_bytes(payload[1:3], "little")
@@ -184,31 +186,38 @@ class Mysql():
         elif version == 9:
             salt = payload[idx+5:]
 
-        self.result.info = {'server_version': server_version, 'salt': salt.hex()}
+        self.result.connection = {'server_version': server_version, 'salt': salt.hex()}
 
 
     def parse_HANDSHAKE_RESPONSE(self, payload):
-        cap1 = payload[0:2]
-        cap2 = payload[2:4]
-        self.client_capabilities = int.from_bytes(cap1 + cap2, "little")
+        self.client_capabilities = int.from_bytes(payload[0:2], "little")
+        self.client_capabilities2 = int.from_bytes(payload[2:4], "little")
+
         max_packet = int.from_bytes(payload[4:8], "little")
         character_set = payload[8]
+
         #23 reserved
+
         idx = payload.find(0, 32)
         username = payload[32:idx].decode()
-        password = payload[idx+2:idx+34]
-        idx2 = payload.find(0, idx+34)
-        schema = payload[idx+34:idx2].decode()
-        
-        self.result.info = {'username': username, 'schema': schema, 'password': password.hex()}
+
+        password_length = 20
+        password = payload[idx+2:idx+2+password_length]
+
+        idx = idx+2+password_length
+        idx2 = payload.find(0, idx)
+
+        schema = payload[idx:idx2].decode()
+
+        self.result.connection = {'username': username, 'schema': schema, 'password': password.hex()}
 
     def parse_USE(self, payload):
         logger.debug(f"database: {payload[1:]}")
-        self.result.info = {'database': payload[1:].decode()}
+        self.result.connection = {'database': payload[1:].decode()}
 
     def parse_SHOW(self, payload):
         logger.debug(f"show: {payload[1:-1]}")
-        self.result.info = {'show': payload[1:-1].decode()}
+        #self.result.info = {'show': payload[1:-1].decode()}
 
     def parse_TABULAR_RESPONSE(self, payload):
         
@@ -217,7 +226,6 @@ class Mysql():
         idx = 1
         result = []
         fields = []
-
 
         # Field packet
         for _ in range(nb_fields):
@@ -248,6 +256,10 @@ class Mysql():
             flags = payload[idx+8:idx+10] # int.from_bytes(payload[idx:idx+2], "little")
             decimals = payload[idx+10]
 
+            if not field_name: field_name = "(empty string)"
+            if not field_original_name: field_original_name = "(empty string)"
+
+            logger.info(f"field: {field_name} {field_type}")
             fields.append({'name': field_name, 'original_name': field_original_name, 'type': field_type})
 
             #skip 00 00
@@ -275,162 +287,6 @@ class Mysql():
                 else:
                     break
 
-            elif response_code == 0x00:
-                idx += 1
-                idx_field = 0
-                row_null_buffer_len = 1
-
-                #first row_null_buffer byte
-                for x in [4,8,16,32,64,128]:
-                    fields[idx_field]['is_null'] = payload[idx] & x == x
-
-                    idx_field += 1
-                    if idx_field >= len(fields):
-                        break
-
-                idx += 1
-
-                if nb_fields > 6:
-                    row_null_buffer_len = ceil((nb_fields-6) / 8)
-
-                    for y in range(row_null_buffer_len):
-                        for x in [1,2,4,8,16,32,64,128]:                        
-                            fields[idx_field]['is_null'] = payload[idx+y] & x == x
-                            
-                            idx_field += 1
-                            if idx_field >= len(fields):
-                                break
-
-                    idx += row_null_buffer_len
-
-
-                for i in range(len(fields)):
-
-                    if fields[i]['is_null']:
-                        row.append(None)
-                        continue
-
-                    if fields[i]['type'] == Mysql.FieldType.FIELD_TYPE_TINY.value:
-                        field_length = 1
-                        row.append(payload[idx])
-
-                    elif fields[i]['type'] == Mysql.FieldType.FIELD_TYPE_SHORT.value:
-                        field_length = 2
-                        row.append(int.from_bytes(payload[idx:idx+field_length], "little"))
-                    
-                    elif fields[i]['type'] == Mysql.FieldType.FIELD_TYPE_LONG.value:
-                        field_length = 4
-                        row.append(int.from_bytes(payload[idx:idx+field_length], "little"))
-
-                    elif fields[i]['type'] == Mysql.FieldType.FIELD_TYPE_INT24.value:
-                        field_length = 4
-                        row.append(int.from_bytes(payload[idx:idx+field_length], "little"))
-
-                    elif fields[i]['type'] == Mysql.FieldType.FIELD_TYPE_LONGLONG.value:
-                        field_length = 8
-                        row.append(int.from_bytes(payload[idx:idx+field_length], "little"))
-
-                    elif fields[i]['type'] == Mysql.FieldType.FIELD_TYPE_NEWDECIMAL.value:
-                        field_length = payload[idx]
-                        idx += 1
-                        row.append(payload[idx:idx+field_length].decode())
-
-                    elif fields[i]['type'] == Mysql.FieldType.FIELD_TYPE_FLOAT.value:
-                        field_length = 4
-                        row.append(struct.unpack("<f",payload[idx:idx+field_length])[0])
-
-                    elif fields[i]['type'] == Mysql.FieldType.FIELD_TYPE_DOUBLE.value:
-                        field_length = 8
-                        row.append(struct.unpack("<d",payload[idx:idx+field_length])[0])
-
-                    elif fields[i]['type'] == Mysql.FieldType.FIELD_TYPE_DATE.value:
-                        field_length = payload[idx]
-                        idx += 1
-                        year = int.from_bytes(payload[idx:idx+2], "little")
-                        month = payload[idx+2]
-                        day = payload[idx+3]
-                        row.append(f"{year}-{month}-{day}")
-
-                    elif fields[i]['type'] == Mysql.FieldType.FIELD_TYPE_DATETIME.value:
-                        field_length = payload[idx]
-                        idx += 1
-                        year = int.from_bytes(payload[idx:idx+2], "little")
-                        month = payload[idx+2]
-                        day = payload[idx+3]
-                        hour = payload[idx+4]
-                        minute = payload[idx+5]
-                        second = payload[idx+6]
-                        row.append(f"{year}-{month}-{day} {hour}:{minute}:{second}")
-
-                    elif fields[i]['type'] == Mysql.FieldType.FIELD_TYPE_TIMESTAMP.value:
-                        field_length = payload[idx]
-                        idx += 1
-                        year = int.from_bytes(payload[idx:idx+2], "little")
-                        month = payload[idx+2]
-                        day = payload[idx+3]
-                        hour = payload[idx+4]
-                        minute = payload[idx+5]
-                        second = payload[idx+6]
-                        row.append(f"{year}-{month}-{day} {hour}:{minute}:{second}")
-
-                    elif fields[i]['type'] == Mysql.FieldType.FIELD_TYPE_TIMESTAMP.value:
-                        field_length = payload[idx]
-                        idx += 1
-                        year = int.from_bytes(payload[idx:idx+2], "little")
-                        month = payload[idx+2]
-                        day = payload[idx+3]
-                        hour = payload[idx+4]
-                        minute = payload[idx+5]                            
-                        second = payload[idx+6]
-                        row.append(f"{year}-{month}-{day} {hour}:{minute}:{second}")
-
-                    elif fields[i]['type'] == Mysql.FieldType.FIELD_TYPE_TIME.value:
-                        field_length = payload[idx]
-                        idx += 1
-                        flags = payload[idx]
-                        days = int.from_bytes(payload[idx+1:idx+5], "little")
-                        hour = payload[idx+5]
-                        minute = payload[idx+6]
-                        second = payload[idx+7]
-                        row.append(f"{hour}:{minute}:{second}")
-
-                    elif fields[i]['type'] == Mysql.FieldType.FIELD_TYPE_YEAR.value:
-                        field_length = 2
-                        year = int.from_bytes(payload[idx:idx+2], "little")
-                        row.append(year)
-
-                    elif fields[i]['type'] == Mysql.FieldType.FIELD_TYPE_VAR_STRING.value:
-                        field_length = payload[idx]
-                        idx += 1
-                        row.append(payload[idx:idx+field_length].decode())
-
-                    elif fields[i]['type'] == Mysql.FieldType.FIELD_TYPE_STRING.value:
-                        field_length = payload[idx]
-                        idx += 1
-                        row.append(payload[idx:idx+field_length].decode())
-
-                    elif fields[i]['type'] == Mysql.FieldType.FIELD_TYPE_BLOB.value:
-                        field_length = payload[idx]
-                        idx += 1
-                        row.append(payload[idx:idx+field_length])
-
-                    #JSON maybe ? who know
-                    elif fields[i]['type'] == Mysql.FieldType.FIELD_TYPE_UNKNOWN.value:
-                        field_length = payload[idx]
-                        idx += 1
-                        row.append(payload[idx:idx+field_length])
-
-                    else:
-                        field_length = payload[idx]
-                        idx += 1
-                        row.append(payload[idx:idx+field_length])
-
-                    logger.debug(f"{fields[i]['name']} - {row[-1]} {payload[idx:idx+field_length]}")
-                    idx += field_length
-
-                result.append(row)
-
-            #Query
             else:
 
                 if packet_length == 1:
@@ -440,15 +296,24 @@ class Mysql():
                 else:
                     for i in range(len(fields)):
                         field_length = payload[idx]
-                        val = payload[idx+1:idx+1+field_length]
 
-                        if field_length > 0:
+                        if field_length == 0xfb:
+                            val = "NULL"
+                            field_length = 0
+
+                        elif field_length > 0:
+                            val = payload[idx+1:idx+1+field_length]
                             val = val.decode()
 
+                        else:
+                            val = "(empty string)"
+
+
+                        logger.debug(f"field {fields[i]['name']} = {val}")
                         row.append(val)
                         idx += 1 + field_length
 
-                result.append(row)
+                    result.append(row)
 
         self.result.cols = fields
         self.result.rows = result
@@ -510,6 +375,7 @@ class Mysql():
         FIELD_TYPE_LONG = 3
         FIELD_TYPE_FLOAT = 4
         FIELD_TYPE_DOUBLE = 5
+        FIELD_TYPE_NULL = 6
         FIELD_TYPE_TIMESTAMP = 7
         FIELD_TYPE_LONGLONG = 8
         FIELD_TYPE_INT24 = 9

@@ -3,8 +3,7 @@ const socket = io();
 
 createApp({
     data: () => ({
-      connections: [],
-      //{ip:"", port:"", hash:"", salt:""}
+      connection: {},
       
       _queries: [],
       //{query: "", error:"XXXX/false", result:{cols:[], rows:[]}}
@@ -36,13 +35,22 @@ createApp({
 
       socket.on("msg", (msg) => {
 
-        if (msg.info) {
-          this.connections.push(msg.info);
+        if (msg.connection) {
+          //update current object with new value(s)
+          this.connection = Object.assign(this.connection, msg.connection);
+
+          //keep first value, only add new properties
+          this.connection = Object.assign(msg.connection, this.connection);
         }
 
         if (msg.query) {
           let q = {'query': msg.query, 'result': ''}
           this._queries.push(q)
+        }
+
+        if (msg.app_error) {
+          console.log(msg.app_error);
+          this._queries[this._queries.length-1]['app_error'] = msg.app_error;
         }
 
         if (msg.result) {

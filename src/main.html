@@ -36,64 +36,51 @@
   </div>
 </nav>
 
-<div id="app">
-    <section class="container">
-    
-    <br>
+<div id="app" class="container">
     <details>
         <summary>Connections data</summary>
-        <p>
-        <table class="table">
-            <template v-for="info in connections">
-                <tr>
-                <td>{{info}}</td>
-                </tr>
-            </template>
-        </table>
-        </p>
+        <p>{{connection}}</p>
     </details>
 
-    <div>
-    <table class="table">
+    <table class="table is-fullwidth">
     <template v-for="query in queries">
         <tr>
             <td>
                 {{query.query}}
-                <p style="background-color: red;" v-if="query.error">{{query.error}}</p>
+                <p style="background-color: #d9534f;" v-if="query.error">{{query.error}}</p>
+                <p style="background-color: #d9534f;" v-if="query.app_error">Error while parsing results :(</p>
 
                 <!-- results -->
                 <details v-if="query.result.nb_rows > 0">
                     <summary>Result: {{query.result.nb_rows}} rows</summary>
-                    <p>
-                    <table class="table" >
-                        <thead>
-                            <tr>
-                            <template v-for="col in query.result.cols">
-                                <th>{{col.name}}</th>
-                            </template>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <template v-for="row in query.result.rows">
+
+                    <div class="table-container" v-if="!query.result.error">
+                        <table class="table" >
+                            <thead>
                                 <tr>
-                                    <template v-for="val in row">
-                                        <td>{{val}}</td>
-                                    </template>
+                                <template v-for="col in query.result.cols">
+                                    <th>{{col.name}}</th>
+                                </template>
                                 </tr>
-                            </template>
-                        </tbody>
-                    </table>
-                    </p>
+                            </thead>
+                            <tbody>
+                                <template v-for="row in query.result.rows">
+                                    <tr>
+                                        <template v-for="val in row">
+                                            <td>{{val}}</td>
+                                        </template>
+                                    </tr>
+                                </template>
+                            </tbody>
+                        </table>
+                    </div>
                 </details>
 
             </td>
         </tr>
     </template>
     </table>
-    </div>
     
-    </section>
-
 </div> <!-- app -->
 
 <script src="static/socket.io.min.js" type="application/javascript"></script>

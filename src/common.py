@@ -15,7 +15,8 @@ class Result():
         self.rows = None
         self.nb_rows = None
 
-        self.info = None
+        self.connection = None
+        self.app_error = None
         
 
 class Utils():
@@ -37,6 +38,8 @@ class Utils():
 
     @staticmethod
     def hex(pkt):
+        if isinstance(pkt, int):
+            return pkt.to_bytes(1, "big")
         return "".join(["{:02X} ".format(x) for x in pkt])
 
     @staticmethod
