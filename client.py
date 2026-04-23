@@ -101,7 +101,8 @@ else:
     queries = [
         "SELECT * FROM users;",
         "SELECT * FROM data;",
-        "SELECT * FROM NOT_A_TABLE;"
+        "SELECT * FROM NOT_A_TABLE;",
+        "SELECT '',0,null"
     ]
 
     for query in queries:

@@ -31,7 +31,7 @@ Example: start Ecuelle as Mysql proxy and start Mysql server, with default setti
 
 Install dependencies
 ```
-sudo apt install python3-dev default-libmysqlclient-dev pkg-config
+sudo apt install python3-dev default-libmysqlclient-dev pkg-config mysql-client php-mysql php
 ```
 
 Install python packages
