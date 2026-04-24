@@ -30,8 +30,8 @@ createApp({
     },
 
     created() {
-      socket.on("connect", () => { console.log('connected'); });
-      socket.on("disconnect", () => { console.log('disconnected'); });
+      socket.on("connect", () => { });
+      socket.on("disconnect", () => { });
 
       socket.on("msg", (msg) => {
 
@@ -49,7 +49,6 @@ createApp({
         }
 
         if (msg.app_error) {
-          console.log(msg.app_error);
           this._queries[this._queries.length-1]['app_error'] = msg.app_error;
         }
 

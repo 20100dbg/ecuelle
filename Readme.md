@@ -1,4 +1,9 @@
-## Ecuelle
+<p align="center">
+  <img src="https://github.com/20100dbg/ecuelle/blob/master/ecuelle.png?raw=true" alt="Logo" width="120" />
+</p>
+
+<h1 align="center">Ecuelle</h1>
+
 
 Ecuelle is a MySQL/PostgreSQL/MSSQL proxy.
 It logs and display in a Web UI intercepted queries and results.

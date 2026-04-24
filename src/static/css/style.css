@@ -2,6 +2,7 @@ details {
   background-color: #2b2b2b;
   border: 1px solid #898EA4;
   border-radius: 5px;
+  margin-top: 1rem;
   margin-bottom: 1rem;
   padding: 0.7rem 1rem;
 }
@@ -29,4 +30,17 @@ details[open] > :last-child {
 
 details h2:first-of-type {
   margin-top: 0;
+}
+
+.error {
+  background-color: #d9534f;
+  margin-top: 10px;
+}
+
+.table-container {
+  max-width: 1260px;
+}
+
+.table.is-fullwidth {
+  width: 99%;
 }

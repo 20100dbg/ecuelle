@@ -19,9 +19,6 @@ Proxy
 
 - TLS support
 
-- add "parsing error" message
--- show in "result" summary
-
 - client(s)
 -- prepared statement client-side & server-side
 -- run_tests.sh

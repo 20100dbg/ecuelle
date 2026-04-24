@@ -26,22 +26,12 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 socketio = SocketIO(app, cors_allowed_origins='*',async_mode='gevent')
 
-global count
-count = 0
-
-
 @app.route("/")
 def main():
-    tpl = open('main.html', 'r').read()
+    tpl = open('static/main.html', 'r').read()
     response = make_response(tpl)
     response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
     return response
-
-@socketio.on('request')
-def request(params):
-    global count
-    count += 1
-    socketio.emit('result', {'data': count})
 
 
 class Packet():

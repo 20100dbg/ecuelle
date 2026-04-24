@@ -4,8 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Ecuelle</title>
-<link rel="stylesheet" href="static/bulma.min.css">
-<link rel="stylesheet" href="static/style.css">
+<link rel="stylesheet" href="static/css/bulma.min.css">
+<link rel="stylesheet" href="static/css/style.css">
+<link rel="icon" href="static/favicon.ico">
 </head>
 <body>
 
@@ -34,10 +35,12 @@
         </div>
       </div>
   </div>
+
 </nav>
 
 <div id="app" class="container">
-    <details>
+
+    <details id="connection">
         <summary>Connections data</summary>
         <p>{{connection}}</p>
     </details>
@@ -47,15 +50,15 @@
         <tr>
             <td>
                 {{query.query}}
-                <p style="background-color: #d9534f;" v-if="query.error">{{query.error}}</p>
-                <p style="background-color: #d9534f;" v-if="query.app_error">Error while parsing results :(</p>
+                <p class="error" v-if="query.error">{{query.error}}</p>
+                <p class="error" v-if="query.app_error">Error while parsing results :(</p>
 
                 <!-- results -->
                 <details v-if="query.result.nb_rows > 0">
                     <summary>Result: {{query.result.nb_rows}} rows</summary>
 
                     <div class="table-container" v-if="!query.result.error">
-                        <table class="table" >
+                        <table class="table is-fullwidth is-bordered">
                             <thead>
                                 <tr>
                                 <template v-for="col in query.result.cols">
@@ -83,9 +86,9 @@
     
 </div> <!-- app -->
 
-<script src="static/socket.io.min.js" type="application/javascript"></script>
-<script src="static/vue.global.js"></script>
-<script src="static/app.js"></script>
+<script src="static/js/socket.io.min.js" type="application/javascript"></script>
+<script src="static/js/vue.global.js"></script>
+<script src="static/js/app.js"></script>
 
 </body>
 </html>
