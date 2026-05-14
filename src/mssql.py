@@ -70,9 +70,9 @@ class Mssql():
         state = pkt[15]
         severity = pkt[16]
         message_length = int.from_bytes(pkt[17:19], "little")
-        message = pkt[19:19+(message_length*2)]
+        message = pkt[19:19+(message_length*2)].decode()
 
-        self.result.error = message.decode()
+        self.result.error = {'code': '', 'state': state, 'message': message}
 
 
     def parse_results(self, pkt):

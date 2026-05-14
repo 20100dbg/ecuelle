@@ -148,12 +148,12 @@ class Mysql():
 
 
     def parse_ERR(self, payload):
-        error_code = int.from_bytes(payload[1:3], "little")
-        sql_state = payload[4:9].decode()
-        error_message = payload[9:].decode()
+        code = int.from_bytes(payload[1:3], "little")
+        state = payload[4:9].decode()
+        message = payload[9:].decode()
 
-        #self.result.error = {'error_code': error_code, 'sql_state': sql_state, 'error_message': error_message}
-        self.result.error = error_message
+        #self.result.error = message
+        self.result.error = {'code': code, 'state': state, 'message': message}
 
     def parse_HANDSHAKE(self, payload):
         version = payload[0]
