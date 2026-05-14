@@ -40,49 +40,50 @@
 
 <div id="app" class="container">
 
-    <details id="connection">
-        <summary>Connections data</summary>
-        <p>{{connection}}</p>
-    </details>
+    <div class="connection" v-if="Object.keys(connection).length > 0">{{connection}}</div>
 
-    <table class="table is-fullwidth">
-    <template v-for="query in queries">
-        <tr>
-            <td>
-                {{query.query}}
-                <p class="error" v-if="query.error">{{query.error}}</p>
-                <p class="error" v-if="query.app_error">Error while parsing results :(</p>
+    <div class="table-container">
+        <table class="table is-fullwidth is-bordered">
+            <tbody>
+                <template v-for="query in queries">
+                    <tr>
+                        <td>
+                            {{query.query}}
+                            <p class="error" v-if="query.error">{{query.error}}</p>
+                            <p class="error" v-if="query.app_error">Error while parsing results :(</p>
 
-                <!-- results -->
-                <details v-if="query.result.nb_rows > 0">
-                    <summary>Result: {{query.result.nb_rows}} rows</summary>
+                            <!-- results -->
+                            <details v-if="query.result.nb_rows > 0">
+                                <summary>Result: {{query.result.nb_rows}} rows</summary>
 
-                    <div class="table-container" v-if="!query.result.error">
-                        <table class="table is-fullwidth is-bordered">
-                            <thead>
-                                <tr>
-                                <template v-for="col in query.result.cols">
-                                    <th>{{col.name}}</th>
-                                </template>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <template v-for="row in query.result.rows">
-                                    <tr>
-                                        <template v-for="val in row">
-                                            <td>{{val}}</td>
-                                        </template>
-                                    </tr>
-                                </template>
-                            </tbody>
-                        </table>
-                    </div>
-                </details>
+                                <div class="table-container" v-if="!query.result.error">
+                                    <table class="table is-fullwidth is-bordered data">
+                                        <thead>
+                                            <tr>
+                                            <template v-for="col in query.result.cols">
+                                                <th>{{col.name}}</th>
+                                            </template>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <template v-for="row in query.result.rows">
+                                                <tr>
+                                                    <template v-for="val in row">
+                                                        <td>{{val}}</td>
+                                                    </template>
+                                                </tr>
+                                            </template>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </details>
 
-            </td>
-        </tr>
-    </template>
-    </table>
+                        </td>
+                    </tr>
+                </template>
+            </tbody>
+        </table>
+    </div>
     
 </div> <!-- app -->
 
