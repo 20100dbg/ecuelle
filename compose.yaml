@@ -1,0 +1,91 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "${PROXY_PORT}:${PROXY_PORT}"
+      - "${APP_PORT}:5000"
+    environment:
+      PROXY_PORT: ${PROXY_PORT}
+      DB_TYPE: ${DB_TYPE}
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT}
+      APP_PORT: ${APP_PORT}
+    networks:
+      - network
+
+  mysql:
+    image: mysql:${DB_VERSION}
+    profiles: ["mysql"]
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
+      MYSQL_USER: ${DB_USER}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+      MYSQL_DATABASE: ${DB_NAME}
+    ports:
+      - "${DB_PORT:-3306}:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./conf/mysql/server.cnf:/etc/mysql/conf.d/custom.cnf
+    networks:
+      - network
+
+  postgres:
+    image: postgres:${DB_VERSION}
+    profiles: ["postgres"]
+    environment:
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - network
+
+  mssql:
+    image: mcr.microsoft.com/mssql/server:${DB_VERSION}
+    profiles: ["mssql"]
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_PID: Developer
+      MSSQL_SA_PASSWORD: ${DB_PASSWORD}
+    ports:
+      - "${DB_PORT:-1433}:1433"
+    volumes:
+      - mssql_data:/var/opt/mssql
+    networks:
+      - network
+
+  test:
+      build:
+        context: .
+        dockerfile: tests/Dockerfile
+      profiles: ["test"]
+
+      environment:
+        DB_HOST: app
+        PROXY_PORT: ${PROXY_PORT}
+        DB_TYPE: ${DB_TYPE}
+        DB_NAME: ${DB_NAME}
+        DB_USER: ${DB_USER}
+        DB_PASSWORD: ${DB_PASSWORD}
+        SQL_SCRIPTS_DIR: /app/sql
+      volumes:
+        - ./conf/mysql/client.cnf:/etc/mysql/conf.d/custom.cnf
+        - ${SQL_SCRIPTS_DIR:-./tests/fixtures}:/app/sql:ro
+      depends_on:
+        - app
+      networks:
+        - network
+
+
+networks:
+  network:
+
+volumes:
+  mysql_data:
+  postgres_data:
+  mssql_data:

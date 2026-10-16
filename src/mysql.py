@@ -20,6 +20,9 @@ class Mysql():
         except Exception as e:
             traceback.print_exc(file=sys.stdout)
             logger.debug(f"parse_packet Exception : {e}")
+            logger.debug(f"self.packet_type {self.packet_type}")
+            logger.debug(f"self.result {self.result}")
+
             logger.debug(f"pkt=\n{Utils.print_hex(pkt)}")
 
             if self.previous_packet == Mysql.PacketType.PACKET_QUERY:
@@ -200,14 +203,19 @@ class Mysql():
 
         idx = payload.find(0, 32)
         username = payload[32:idx].decode()
+        logger.debug(f"username: {username}")
 
-        password_length = 20
-        password = payload[idx+2:idx+2+password_length]
+        idx += 2
+        password_length = 32 #20
+        password = payload[idx:idx+password_length]
+        logger.debug(f"password: {password.hex()}")
 
-        idx = idx+2+password_length
+        idx += password_length
         idx2 = payload.find(0, idx)
 
         schema = payload[idx:idx2].decode()
+        logger.debug(f"schema: {schema}")
+
 
         self.result.connection = {'username': username, 'schema': schema, 'password': password.hex()}
 

@@ -1,49 +1,35 @@
 Proxy
-
-- loop on recv if len(data) == max data
-
-- work on frontend
+- add parse_header() for every protocol
+-- retrieve packet_type, payload_length
+- read payload_length, use with tcp.read(x + payload_length)
 - detect/retrieve handshake postgre and mssql
+- mysql: send whole packet to parse_* methods
+- MSSQL: support SQL_VARIANT ?
+- TLS support
 
+Frontend
+- clear button
+- reverse order button
+- State (active, closed, etc)
+- queries count
+- separated list for handshakes
+- add columns :
+-- DBMS
+-- datetime
 - sql color syntax : https://github.com/scriptcoded/sql-highlight
 -- replace ? with params
 -- delete /**/ comments + trim()
+- search text
 
-- mysql
--- send whole packet to parse_* methods
+Tests
+- complete and enable client.php
+- complete and enable client.sh
+- insert very long text, force server to send two TCP packets on SELECT
+- run automated tests
+-- mysql 5.7, 8.4, 9.6
+-- mariadb 10.6 ,11.4, 12.3
+-- postgres 14.22, 15.17, 16.13, 17.9, 18.3
+-- mssql 2017-latest, 2019-latest, 2022-latest, 2025-latest
 
-- max nb lines
-
-- MSSQL
--- support SQL_VARIANT ?
-
-- TLS support
-
-- client(s)
--- prepared statement client-side & server-side
--- run_tests.sh
---- run .py, .php, mysql client
-
-- Tests:
--- mysql
---- mysql:5.7
---- mysql:8.4
---- mysql:9.6
-
--- mariadb
---- mariadb:10.6
---- mariadb:11.4
---- mariadb:12.3
-
--- postgresql
---- postgres:14.22
---- postgres:15.17
---- postgres:16.13
---- postgres:17.9
---- postgres:18.3
-
--- mssql
---- mcr.microsoft.com/mssql/server:2017-latest
---- mcr.microsoft.com/mssql/server:2019-latest
---- mcr.microsoft.com/mssql/server:2022-latest
---- mcr.microsoft.com/mssql/server:2025-latest
+Investigate
+- prepared statement client-side & server-side

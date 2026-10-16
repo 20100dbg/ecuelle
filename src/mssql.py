@@ -26,7 +26,7 @@ class Mssql():
     def parse_packet(self, pkt):
         self.packet_type = self.get_packet_type(pkt)
 
-        logger.debug(f"self.packet_type={self.packet_type}")
+        #logger.debug(f"self.packet_type={self.packet_type}")
 
         if self.packet_type == Mssql.PacketType.PACKET_BATCH:
             self.parse_BATCH(pkt)
@@ -70,8 +70,9 @@ class Mssql():
         state = pkt[15]
         severity = pkt[16]
         message_length = int.from_bytes(pkt[17:19], "little")
-        message = pkt[19:19+(message_length*2)].decode()
+        message = pkt[19:19+(message_length*2)].decode('utf-16')
 
+        logger.debug(f"parse_error message={message}")
         self.result.error = {'code': '', 'state': state, 'message': message}
 
 

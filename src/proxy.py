@@ -1,20 +1,20 @@
 import gevent
-from flask import Flask, request, make_response
-from flask_socketio import SocketIO, emit
-import time
-import threading
-import os
 import logging.config
+import os
+import signal
 import socket
 import sys
+import threading
 import time
+from flask import Flask, request, make_response
+from flask_socketio import SocketIO, emit
 from common import *
 from mysql import *
 from postgres import *
 from mssql import *
 
 level = logging.DEBUG
-log_filename = "proxy.log"
+log_filename = "/dev/stdout/" #"proxy.log"
 
 logging.basicConfig(level=level, style="{", format="{asctime} - {levelname} - {message}",
                     datefmt="%Y-%m-%d %H:%M",
@@ -68,7 +68,7 @@ class Proxy():
                 break
 
             p = Packet.init(self.dbms, data, self.previous_packet)
-            logger.info(f"C -> S : {p.packet_type}")
+            #logger.info(f"C -> S : {p.packet_type}")
 
             if p.result.query:
                 query = p.result.query
@@ -101,9 +101,11 @@ class Proxy():
                     break
 
                 p = Packet.init(self.dbms, data, self.previous_packet)
-                logger.info(f"C <- S : {p.packet_type}")
+                #logger.info(f"C <- S : {p.packet_type}")
 
                 if p.result.error or p.result.rows:
+                    if p.result.error:
+                        logger.debug(p.result.error)
                     socketio.emit('msg', {'timestamp': time.time(), 'dbms': self.dbms, 'error': p.result.error, 
                         'result': {'cols': p.result.cols, 'rows': p.result.rows, 'nb_rows': p.result.nb_rows}})
 
@@ -145,13 +147,28 @@ args = parser.parse_args()
 """
 
 
+if not os.getenv('DB_TYPE'):
+    logger.debug("Please set DB_TYPE")
+    raise ValueError("Missing DB_TYPE parameter")
+
+if not os.getenv('PROXY_PORT'):
+    logger.debug("Please set PROXY_PORT")
+    raise ValueError("Missing PROXY_PORT parameter")
+
+if not os.getenv('DB_HOST'):
+    logger.debug("Please set DB_HOST")
+    raise ValueError("Missing DB_HOST parameter")
+
+if not os.getenv('DB_PORT'):
+    logger.debug("Please set DB_PORT")
+    raise ValueError("Missing DB_PORT parameter")
 
 dbms = os.getenv('DB_TYPE')
 listening_port = int(os.getenv('PROXY_PORT'))
-server_host = os.getenv('SERVER_HOST')
-server_port = int(os.getenv('SERVER_PORT'))
+server_host = os.getenv('DB_HOST')
+server_port = int(os.getenv('DB_PORT'))
 
-logger.debug(f"Args - DB_TYPE={dbms}, PROXY_PORT={listening_port}, SERVER_HOST={server_host}, SERVER_PORT={server_port}")
+logger.debug(f"Args - DB_TYPE={dbms}, PROXY_PORT={listening_port}, DB_HOST={server_host}, DB_PORT={server_port}")
 
 t = threading.Thread(target=main_loop,args=[dbms, server_host, server_port, listening_port])
 t.start()
