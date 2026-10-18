@@ -10,42 +10,47 @@
 </head>
 <body>
 
-<nav class="navbar has-background-primary-10" role="navigation" aria-label="main navigation">
-    
-    <div class="navbar-brand">
-        <!-- navbar items, navbar burger... -->
-    </div>
-    <div id="navbarBasicExample" class="navbar-menu">
-        <div class="navbar-start">
-    
+
+<div id="app" class="my-container">
+
+    <nav class="navbar has-background-primary-10" role="navigation" aria-label="main navigation">
+        
+        <div class="navbar-brand">
+            <!-- navbar items, navbar burger... -->
+        </div>
+        <div id="navbarBasicExample" class="navbar-menu">
+            <div class="navbar-start">
+        
+              <div class="navbar-item">
+                <div class="buttons">
+                  <a class="button is-primary" @click="clearQueries">Clear</a>
+                  <a class="button is-primary" @click="toggleOrder">Reverse order</a>
+                  <input v-model="filterQuery" class="input is-normal">
+                  {{databaseInfos}}
+                </div>
+              </div>
+            </div>
+
+        </div>
+
+        <div class="navbar-end">
           <div class="navbar-item">
             <div class="buttons">
-              <a class="button is-primary">Clear</a>
-              <a class="button is-primary">Reverse order</a>
+                <p>{{clientState}} / {{serverState}}</p>
+                <p>{{queriesCount}} queries</p>
             </div>
           </div>
-        </div>
-    </div>
-
-    <div class="navbar-end">
-      <div class="navbar-item">
-        <div class="buttons">
-            <p>State</p>
-            <p>Nb query</p>
-        </div>
       </div>
-  </div>
 
-</nav>
-
-<div id="app" class="container">
+    </nav>
 
     <div class="connection" v-if="Object.keys(connection).length > 0">{{connection}}</div>
 
     <div class="table-container">
         <table class="table is-fullwidth is-bordered">
             <tbody>
-                <template v-for="query in queries">
+
+                <template v-for="query in queries" :key="query.id">
                     <tr>
                         <td>
                             {{query.query}}

@@ -86,11 +86,16 @@ class Proxy():
                 socketio.emit('msg', {'timestamp': time.time(), 'dbms': self.dbms, 'parameters': p.result.parameters})
 
             if p.result.connection:
-                socketio.emit('msg', {'timestamp': time.time(), 'dbms': self.dbms, 'connection': p.result.connection})
+                #p.result.connection
+                socketio.emit('msg', {'timestamp': time.time(), 'dbms': self.dbms, 'connection': {
+                    'db_name': '', 'db_version': '', 'db_version': ''
+                }})
+
 
             self.previous_packet_type = p.packet_type
             self.conn_server.send(data)
-            
+
+        socketio.emit('msg', {'status': {'client': 'disconnected'}})
         self.conn_client.close()
 
 
@@ -101,6 +106,7 @@ class Proxy():
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             s.connect((server_host, server_port))
             self.conn_server = s
+            socketio.emit('msg', {'status': {'server': 'connected'}})
 
             while True:
                 data = s.recv(65535)
@@ -121,13 +127,18 @@ class Proxy():
                         'result': {'cols': p.result.cols, 'rows': p.result.rows, 'nb_rows': p.result.nb_rows}})
 
                 if p.result.connection:
-                    socketio.emit('msg', {'timestamp': time.time(), 'dbms': self.dbms, 'connection': p.result.connection})
+                    #p.result.connection
+                    socketio.emit('msg', {'timestamp': time.time(), 'dbms': self.dbms, 'connection': {
+                        'db_name': '', 'db_version': '', 'db_version': ''
+                    }})
 
                 if p.result.app_error:
                     socketio.emit('msg', {'timestamp': time.time(), 'dbms': self.dbms, 'app_error': p.result.app_error})
 
                 self.previous_packet_type = p.packet_type
                 self.conn_client.send(data)
+
+            socketio.emit('msg', {'status': {'server': 'disconnected'}})
 
 
 
@@ -143,7 +154,9 @@ def main_loop(dbms, server_host, server_port, listening_port):
 
     while True:
         client, client_address = server.accept()
+
         logger.info(f"Client connected: {client_address}")
+        socketio.emit('msg', {'status': {'client': 'connected'}})
 
         p = Proxy(dbms, client, server_host, server_port)
 

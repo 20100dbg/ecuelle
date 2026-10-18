@@ -4,11 +4,13 @@ const socket = io();
 createApp({
     data: () => ({
       connection: {},
-      
       _queries: [],
-      //{query: "", error:"XXXX/false", result:{cols:[], rows:[]}}
-
       filterQuery: '',
+      reversedOrder: false,
+      clientState: '',
+      serverState: '',
+      queriesCount: 0,
+      databaseInfos: ''
     }),
 
     computed: {
@@ -17,16 +19,19 @@ createApp({
         let result = [];
 
         for (let i = this._queries.length - 1; i >= 0; i--) {
-          
           if (this.filterQuery && !this._queries[i].query.toLowerCase().includes(this.filterQuery.toLowerCase())) {
             continue;
           }
+          this._queries[i].id = i;
           result.push(this._queries[i]);
         }
+
+        if (this.reversedOrder) {
+          return result.reverse();
+        }
+
         return result;
       }
-
-
     },
 
     created() {
@@ -34,6 +39,12 @@ createApp({
       socket.on("disconnect", () => { });
 
       socket.on("msg", (msg) => {
+        console.log(msg);
+
+        if (msg.status) {
+          if (msg.status.client) this.clientState = msg.status.client;
+          if (msg.status.server) this.serverState = msg.status.server;
+        }
 
         if (msg.connection) {
           //update current object with new value(s)
@@ -41,6 +52,8 @@ createApp({
 
           //keep first value, only add new properties
           this.connection = Object.assign(msg.connection, this.connection);
+
+          console.log(this.connection);
         }
 
         if (msg.query) {
@@ -56,10 +69,20 @@ createApp({
           this._queries[this._queries.length-1]['result'] = msg.result;
           this._queries[this._queries.length-1]['error'] = msg.error;
         }
+
+        this.queriesCount = this._queries.length;
       });
     },
 
     methods: {
+
+      toggleOrder() {
+        this.reversedOrder = !this.reversedOrder;
+      },
+
+      clearQueries() {
+        this._queries = [];
+      },
 
       onrequest() {
         socket.emit('request', {});
