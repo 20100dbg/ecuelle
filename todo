@@ -3,7 +3,7 @@ Proxy
 -- retrieve packet_type, payload_length
 - read payload_length, use with tcp.read(x + payload_length)
 - detect/retrieve handshake postgre and mssql
-- mysql: send whole packet to parse_* methods
+- mssql+postgres: pass payload instead of whole packet to parse_* methods
 - MSSQL: support SQL_VARIANT ?
 - TLS support
 

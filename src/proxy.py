@@ -16,9 +16,12 @@ from mssql import *
 level = logging.DEBUG
 log_filename = "/dev/stdout/" #"proxy.log"
 
-logging.basicConfig(level=level, style="{", format="{asctime} - {levelname} - {message}",
+#format="{asctime} - {levelname} - {message}",
+logging.basicConfig(level=level, style="{", 
+                    format="{asctime} [{levelname}] [{module}.{funcName}] {message}",
                     datefmt="%Y-%m-%d %H:%M",
                     filename=log_filename)
+
 
 logger = logging.getLogger(__name__)
 
@@ -36,10 +39,10 @@ def main():
 
 class Packet():
     @staticmethod
-    def init(dbms, data, previous_packet):
-        if dbms == 'mysql' : return Mysql(data, previous_packet)
-        elif dbms == 'postgres' : return Postgres(data, previous_packet)
-        elif dbms == 'mssql' : return Mssql(data, previous_packet)
+    def init(dbms, data, previous_packet_type):
+        if dbms == 'mysql' : return Mysql(data, previous_packet_type)
+        elif dbms == 'postgres' : return Postgres(data, previous_packet_type)
+        elif dbms == 'mssql' : return Mssql(data, previous_packet_type)
         else : return None
 
 
@@ -49,7 +52,7 @@ class Proxy():
         self.dbms = dbms
         self.conn_client = client
         self.conn_server = None
-        self.previous_packet = None
+        self.previous_packet_type = None
         
         t = threading.Thread(target=self.listen_server,args=[server_host, server_port])
         t.start()
@@ -67,8 +70,12 @@ class Proxy():
             if not data:
                 break
 
-            p = Packet.init(self.dbms, data, self.previous_packet)
-            #logger.info(f"C -> S : {p.packet_type}")
+            try:
+                p = Packet.init(self.dbms, data, self.previous_packet_type)
+            except Exception as e:
+                logger.debug(f"listen_client Exception : {e}")
+                logger.debug(f"pkt={Utils.print_hex(data)}")
+                p = {"result": Result()}
 
             if p.result.query:
                 query = p.result.query
@@ -81,7 +88,7 @@ class Proxy():
             if p.result.connection:
                 socketio.emit('msg', {'timestamp': time.time(), 'dbms': self.dbms, 'connection': p.result.connection})
 
-            self.previous_packet = p.packet_type
+            self.previous_packet_type = p.packet_type
             self.conn_server.send(data)
             
         self.conn_client.close()
@@ -100,8 +107,12 @@ class Proxy():
                 if not data:
                     break
 
-                p = Packet.init(self.dbms, data, self.previous_packet)
-                #logger.info(f"C <- S : {p.packet_type}")
+                try:
+                    p = Packet.init(self.dbms, data, self.previous_packet_type)
+                except Exception as e:
+                    logger.debug(f"listen_server Exception : {e}")
+                    logger.debug(f"pkt={Utils.print_hex(data)}")
+                    p = {"result": Result()}
 
                 if p.result.error or p.result.rows:
                     if p.result.error:
@@ -115,7 +126,7 @@ class Proxy():
                 if p.result.app_error:
                     socketio.emit('msg', {'timestamp': time.time(), 'dbms': self.dbms, 'app_error': p.result.app_error})
 
-                self.previous_packet = p.packet_type
+                self.previous_packet_type = p.packet_type
                 self.conn_client.send(data)
 
 
@@ -132,19 +143,10 @@ def main_loop(dbms, server_host, server_port, listening_port):
 
     while True:
         client, client_address = server.accept()
-        logger.info(f"Client connected: {client}, {client_address}")
+        logger.info(f"Client connected: {client_address}")
 
         p = Proxy(dbms, client, server_host, server_port)
 
-
-"""
-parser = argparse.ArgumentParser(description='MySQL/Postgres/MSSQL proxy')
-parser.add_argument('-s', '--server_host', metavar='', required=False, default='127.0.0.1', help='DB server IP or hostname')
-parser.add_argument('-p', '--server_port', metavar='', type=int, required=True, help='DB server port')
-#parser.add_argument('-l', '--listening_port', metavar='', type=int, required=True, help='Listening port waiting for clients')
-#parser.add_argument('-d', '--dbms', metavar='', required=True, choices=dbms, default='mysql', help='DBMS')
-args = parser.parse_args()
-"""
 
 
 if not os.getenv('DB_TYPE'):
@@ -172,5 +174,4 @@ logger.debug(f"Args - DB_TYPE={dbms}, PROXY_PORT={listening_port}, DB_HOST={serv
 
 t = threading.Thread(target=main_loop,args=[dbms, server_host, server_port, listening_port])
 t.start()
-
 

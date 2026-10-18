@@ -7,27 +7,48 @@ logger = logging.getLogger(__name__)
 
 class Postgres():
 
-    def __init__(self, pkt, previous_packet):
-        self.pkt = pkt
+    def __init__(self, pkt, previous_packet_type):
         self.result = Result()
-        self.debug = True
         self.packet_type = None
-        self.previous_packet = previous_packet
+        self.previous_packet_type = previous_packet_type
 
-        try:
-            self.parse_packet(pkt)
-        except Exception as e:
-            traceback.print_exc(file=sys.stdout)
-            logger.debug(f"parse_packet Exception : {e}")
-            logger.debug(f"pkt={Utils.print_hex(pkt)}")
+        self.parse_header(pkt)
+        self.parse_packet(pkt)
+
+
+    def get_packet_type(self, pkt):
+
+        if pkt[0] == 0:
+            payload_length = int.from_bytes(pkt[0:4], "big")
+            payload = pkt[4:]
+
+            if payload_length == 8:
+                request_code = int.from_bytes(payload, "big")
+                if request_code == 80877103:
+                    return Postgres.PacketType.PACKET_SSL_REQUEST
+
+            elif payload_length > 8:
+                return Postgres.PacketType.PACKET_STARTUP
+
+        elif len(pkt) == 1 and pkt[0] == 0x4e:
+            return Postgres.PacketType.PACKET_SSL_RESPONSE
+
+        elif pkt[0] in [packet_type.value for packet_type in Postgres.PacketType]:
+            return Postgres.PacketType(pkt[0])
+
+        return Postgres.PacketType.PACKET_UNKNOWN
+
+
+    def parse_header(self, pkt):
+        self.packet_type = self.get_packet_type(pkt)
+        self.payload_length = int.from_bytes(pkt[1:5], "big")
 
 
     def parse_packet(self, pkt):
-        
-        self.packet_type = self.get_packet_type(pkt)
+
+        logger.debug(f"self.packet_type {self.packet_type}")
 
         if self.packet_type == Postgres.PacketType.PACKET_QUERY:
-            payload_length = int.from_bytes(pkt[1:5], "big")
             query = pkt[5:-1].decode()
 
             if query in ["BEGIN", "ROLLBACK", "COMMIT"]:
@@ -55,13 +76,13 @@ class Postgres():
 
         idx = idx_end + 1
         idx_end = pkt.find(0, idx+1)
-        code = pkt[idx+1:idx_end]
+        code = pkt[idx:idx_end].decode()
 
         idx = idx_end + 1
         idx_end = pkt.find(0, idx+1)
         message = pkt[idx+1:idx_end].decode()
 
-        #print(f"severity {severity}, text {text}, code {code}, message {message}")
+        #logger.debug(f"severity {severity}, text {text}, code {code}, message {message}")
         self.result.error = {'code': code, 'state': '', 'message': message}
 
 
@@ -90,7 +111,13 @@ class Postgres():
 
             for _ in range(field_count):
                 column_length = int.from_bytes(pkt[idx:idx+4], "big")
-                data = pkt[idx+4:idx+4+column_length].decode()
+                if column_length == 4294967295:
+                    column_length = -1
+
+                if column_length > 0:
+                    data = pkt[idx+4:idx+4+column_length].decode()
+                else:
+                    data = ""
 
                 row.append(data)
                 idx += 4 + column_length
@@ -102,28 +129,12 @@ class Postgres():
         self.result.nb_rows = len(rows)
 
 
-    def get_packet_type(self, pkt):
-
-        if pkt[0] == 0:
-            payload_length = int.from_bytes(pkt[0:4], "big")
-            
-            payload = pkt[4:payload_length - 4]
-            request_code = int.from_bytes(payload, "big")
-            if request_code == 80877103:
-                return Postgres.PacketType.PACKET_SSL_REQUEST
-
-        elif len(pkt) == 1 and pkt[0] == 0x4e:
-            return Postgres.PacketType.PACKET_SSL_RESPONSE
-
-        elif pkt[0] in [packet_type.value for packet_type in Postgres.PacketType]:
-            return Postgres.PacketType(pkt[0])
-        
-        return Postgres.PacketType.PACKET_UNKNOWN
 
 
     class PacketType(Enum):
         PACKET_SSL_REQUEST = 0x00
         PACKET_SSL_RESPONSE = 0x01
+        PACKET_STARTUP = 0x02
         PACKET_COMPLETION = 0x43
         PACKET_DATA_ROW = 0x44
         PACKET_ERROR = 0x45

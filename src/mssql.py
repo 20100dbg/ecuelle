@@ -8,19 +8,12 @@ logger = logging.getLogger(__name__)
 
 class Mssql():
 
-    def __init__(self, pkt, previous_packet):
-        self.pkt = pkt
+    def __init__(self, pkt, previous_packet_type):
         self.result = Result()
-        self.debug = True
         self.packet_type = None
-        self.previous_packet = previous_packet
+        self.previous_packet_type = previous_packet_type
 
-        try:
-            self.parse_packet(pkt)
-        except Exception as e:
-            traceback.print_exc(file=sys.stdout)
-            logger.debug(f"parse_packet Exception : {e}")
-            logger.debug(f"pkt={Utils.print_hex(pkt)}")
+        self.parse_packet(pkt)
 
 
     def parse_packet(self, pkt):
@@ -32,7 +25,7 @@ class Mssql():
             self.parse_BATCH(pkt)
 
         elif self.packet_type == Mssql.PacketType.PACKET_RESPONSE and \
-            self.previous_packet == Mssql.PacketType.PACKET_BATCH:
+            self.previous_packet_type == Mssql.PacketType.PACKET_BATCH:
             self.parse_RESPONSE(pkt)
 
 
@@ -60,8 +53,17 @@ class Mssql():
             self.parse_results(pkt)
         elif pkt[8] == 0xaa:
             self.parse_error(pkt)
+        elif pkt[8] == 0xe3:
+            #EnvChange
+            pass
+        elif pkt[8] == 0xe4:
+            #Session state
+            pass
+        elif pkt[8] == 0xfd:
+            #Done
+            pass
         else:
-            print("Unkown packet")
+            logger.debug(f"Unkown packet, pkt[8]={pkt[8]}")
 
 
     def parse_error(self, pkt):
@@ -71,8 +73,6 @@ class Mssql():
         severity = pkt[16]
         message_length = int.from_bytes(pkt[17:19], "little")
         message = pkt[19:19+(message_length*2)].decode('utf-16')
-
-        logger.debug(f"parse_error message={message}")
         self.result.error = {'code': '', 'state': state, 'message': message}
 
 

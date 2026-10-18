@@ -8,25 +8,17 @@ logger = logging.getLogger(__name__)
 
 class Mysql():
 
-    def __init__(self, pkt, previous_packet):
-        self.pkt = pkt
+    def __init__(self, pkt, previous_packet_type):
         self.result = Result()
-        self.debug = True
         self.packet_type = None
-        self.previous_packet = previous_packet
+        self.previous_packet_type = previous_packet_type
 
-        try:
-            self.parse_packet(pkt)
-        except Exception as e:
-            traceback.print_exc(file=sys.stdout)
-            logger.debug(f"parse_packet Exception : {e}")
-            logger.debug(f"self.packet_type {self.packet_type}")
-            logger.debug(f"self.result {self.result}")
+        self.parse_packet(pkt)
 
-            logger.debug(f"pkt=\n{Utils.print_hex(pkt)}")
-
-            if self.previous_packet == Mysql.PacketType.PACKET_QUERY:
-                self.result.app_error = True
+        """
+        if self.previous_packet_type == Mysql.PacketType.PACKET_QUERY:
+            self.result.app_error = True
+        """
 
     #@staticmethod
     def replace_query(self, new_query):
@@ -90,7 +82,7 @@ class Mysql():
             return Mysql.PacketType.PACKET_TABULAR_RESPONSE
         elif packet_number == 0 and (payload[0] == 0x0a or payload[0] == 0x09):
             return Mysql.PacketType.PACKET_HANDSHAKE
-        elif packet_number == 1 and self.previous_packet == Mysql.PacketType.PACKET_HANDSHAKE:
+        elif packet_number == 1 and self.previous_packet_type == Mysql.PacketType.PACKET_HANDSHAKE:
         # len(payload) > 200 and int.from_bytes(payload[4:8], "little") == 16777216 and payload[9:32] == bytes([0]*23):
             return Mysql.PacketType.PACKET_HANDSHAKE_RESPONSE
         elif packet_number == 2 and payload_length == 2:
