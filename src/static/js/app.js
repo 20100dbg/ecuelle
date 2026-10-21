@@ -22,7 +22,7 @@ createApp({
         let result = [];
 
         for (let i = this._queries.length - 1; i >= 0; i--) {
-          if (this.filterQuery && !this._queries[i].query.toLowerCase().includes(this.filterQuery.toLowerCase())) {
+          if (this.filterQuery && !this._queries[i].cmd.toLowerCase().includes(this.filterQuery.toLowerCase())) {
             continue;
           }
           this._queries[i].id = i;
@@ -60,11 +60,10 @@ createApp({
           if (this.connection.db_version) this.dbVersion = this.connection.db_version;
           if (msg.dbms) this.dbms = msg.dbms;
 
-          console.log(this.connection);
         }
 
         if (msg.query) {
-          let q = {'query': msg.query, 'result': ''}
+          let q = {'cmd': msg.query, 'cmdHighlight': window.highlight(msg.query, { html: true }), 'result': ''}
           this._queries.push(q)
         }
 

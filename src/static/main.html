@@ -6,6 +6,7 @@
 <title>Ecuelle</title>
 <link rel="stylesheet" href="static/css/bulma.min.css">
 <link rel="stylesheet" href="static/css/style.css">
+<link rel="stylesheet" href="static/css/sql-highlight.css">
 <link rel="icon" href="static/favicon.ico">
 </head>
 <body>
@@ -43,8 +44,6 @@
 
     </nav>
 
-    <div class="connection" v-if="Object.keys(connection).length > 0">{{connection}}</div>
-
     <div class="table-container">
         <table class="table is-fullwidth is-bordered">
             <tbody>
@@ -52,7 +51,7 @@
                 <template v-for="query in queries" :key="query.id">
                     <tr>
                         <td>
-                            {{query.query}}
+                            <code v-html="query.cmdHighlight"></code>
                             <p class="error" v-if="query.error">{{query.error}}</p>
                             <p class="error" v-if="query.app_error">Error while parsing results :(</p>
 
@@ -93,6 +92,7 @@
 
 <script src="static/js/socket.io.min.js" type="application/javascript"></script>
 <script src="static/js/vue.global.js"></script>
+<script src="static/js/sql-highlight.browser.js"></script>
 <script src="static/js/app.js"></script>
 
 </body>

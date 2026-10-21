@@ -14,8 +14,8 @@ Frontend
 - add columns :
 -- DBMS
 -- datetime
-- sql color syntax : https://github.com/scriptcoded/sql-highlight
--- replace ? with params
+- queries editing
+-- replace parameters placeholder with values
 -- delete /**/ comments + trim()
 
 Tests
@@ -30,3 +30,4 @@ Tests
 
 Investigate
 - prepared statement client-side & server-side
+- run test with mssql auto start queries ? even without env var

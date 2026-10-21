@@ -40,6 +40,11 @@ You can bypass .env file parameters with env vars:
 DB_VERSION=8.4 DB_PORT=3306 docker compose --profile <DBMS> up --build
 ```
 
+You can also start Ecuelle alone, no database
+```
+docker compose up --build
+```
+
 ### Shut it down
 
 Don't forget to specify the used profile:

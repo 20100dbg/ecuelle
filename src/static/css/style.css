@@ -1,3 +1,13 @@
+
+html,
+body {
+    min-width: 1400px;
+}
+
+#app {
+    min-width: 1400px;
+}
+
 details {
   background-color: #2b2b2b;
   border: 1px solid #898EA4;
@@ -49,11 +59,6 @@ details > .table-container {
 input.is-normal{
   width: auto;
 }
-/*
-  max-width: 1260px;
-  --bulma-table-background-color: var(--bulma-scheme-main);
-  background-color: var(--bulma-table-background-color);
-*/
 
 .table.is-fullwidth.data {
   width: 99%;

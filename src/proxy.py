@@ -120,6 +120,8 @@ class Proxy():
                     logger.debug(f"pkt={Utils.print_hex(data)}")
                     p = {"result": Result()}
 
+                logger.debug(f"p {p}")
+
                 if p.result.error or p.result.rows:
                     if p.result.error:
                         logger.debug(p.result.error)

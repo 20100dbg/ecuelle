@@ -1,10 +1,10 @@
 import struct
-from enum import Enum
+from enum import StrEnum
 import re
 import string
 
 
-class STR(Enum):
+class STR(StrEnum):
     DBMS_POSTGRES = "postgres"
     DBMS_MYSQL = "mysql"
     DBMS_MSSQL = "mssql"
