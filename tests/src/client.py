@@ -49,7 +49,9 @@ def postgres_query(config, query):
 
 def mssql_query(config, query):
 
-    connection_string = f"SERVER={config['host']},{config['port']};DATABASE={config['database']};UID={config['user']};PWD={config['password']};Encrypt=No;"
+    connection_string = f"""SERVER={config['host']},{config['port']};
+DATABASE={config['database']};UID={config['user']};PWD={config['password']};
+Encrypt=No;"""
     with mssql_python.connect(connection_string) as conn:
         try:
             with conn.cursor() as cur:

@@ -154,7 +154,7 @@ class Mysql():
         version = payload[0]
 
         idx = payload.find(0)
-        server_version = payload[1:idx].decode()
+        db_version = payload[1:idx].decode()
         thread_id = int.from_bytes(payload[idx+1:idx+5], "little")
 
         if version == 10:
@@ -181,7 +181,7 @@ class Mysql():
         elif version == 9:
             salt = payload[idx+5:]
 
-        self.result.connection = {'server_version': server_version, 'salt': salt.hex()}
+        self.result.connection = {'db_version': db_version, 'salt': salt.hex()}
 
 
     def parse_HANDSHAKE_RESPONSE(self, payload):
@@ -207,7 +207,6 @@ class Mysql():
 
         schema = payload[idx:idx2].decode()
         logger.debug(f"schema: {schema}")
-
 
         self.result.connection = {'username': username, 'schema': schema, 'password': password.hex()}
 

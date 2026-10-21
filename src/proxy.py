@@ -40,9 +40,9 @@ def main():
 class Packet():
     @staticmethod
     def init(dbms, data, previous_packet_type):
-        if dbms == 'mysql' : return Mysql(data, previous_packet_type)
-        elif dbms == 'postgres' : return Postgres(data, previous_packet_type)
-        elif dbms == 'mssql' : return Mssql(data, previous_packet_type)
+        if dbms == STR.DBMS_MYSQL : return Mysql(data, previous_packet_type)
+        elif dbms == STR.DBMS_POSTGRES : return Postgres(data, previous_packet_type)
+        elif dbms == STR.DBMS_MSSQL : return Mssql(data, previous_packet_type)
         else : return None
 
 
@@ -61,7 +61,6 @@ class Proxy():
 
         t = threading.Thread(target=self.listen_client,args=[])
         t.start()
-
 
     def listen_client(self):
 
@@ -87,13 +86,12 @@ class Proxy():
 
             if p.result.connection:
                 #p.result.connection
-                socketio.emit('msg', {'timestamp': time.time(), 'dbms': self.dbms, 'connection': {
-                    'db_name': '', 'db_version': '', 'db_version': ''
-                }})
+                socketio.emit('msg', {'timestamp': time.time(), 'dbms': self.dbms, 'connection': p.result.connection})
 
 
             self.previous_packet_type = p.packet_type
-            self.conn_server.send(data)
+            if self.conn_server:
+                self.conn_server.send(data)
 
         socketio.emit('msg', {'status': {'client': 'disconnected'}})
         self.conn_client.close()
@@ -104,8 +102,10 @@ class Proxy():
         logger.info(f"{server_host}, {server_port}")
 
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            
             s.connect((server_host, server_port))
             self.conn_server = s
+
             socketio.emit('msg', {'status': {'server': 'connected'}})
 
             while True:
@@ -128,15 +128,14 @@ class Proxy():
 
                 if p.result.connection:
                     #p.result.connection
-                    socketio.emit('msg', {'timestamp': time.time(), 'dbms': self.dbms, 'connection': {
-                        'db_name': '', 'db_version': '', 'db_version': ''
-                    }})
+                    socketio.emit('msg', {'timestamp': time.time(), 'dbms': self.dbms, 'connection': p.result.connection})
 
                 if p.result.app_error:
                     socketio.emit('msg', {'timestamp': time.time(), 'dbms': self.dbms, 'app_error': p.result.app_error})
 
                 self.previous_packet_type = p.packet_type
-                self.conn_client.send(data)
+                if self.conn_client:
+                    self.conn_client.send(data)
 
             socketio.emit('msg', {'status': {'server': 'disconnected'}})
 

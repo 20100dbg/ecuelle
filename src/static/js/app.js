@@ -10,7 +10,10 @@ createApp({
       clientState: '',
       serverState: '',
       queriesCount: 0,
-      databaseInfos: ''
+      dbUsername: '',
+      dbName: '',
+      dbms: '',
+      dbVersion: '',
     }),
 
     computed: {
@@ -39,7 +42,6 @@ createApp({
       socket.on("disconnect", () => { });
 
       socket.on("msg", (msg) => {
-        console.log(msg);
 
         if (msg.status) {
           if (msg.status.client) this.clientState = msg.status.client;
@@ -52,6 +54,11 @@ createApp({
 
           //keep first value, only add new properties
           this.connection = Object.assign(msg.connection, this.connection);
+
+          if (this.connection.username) this.dbUsername = this.connection.username;
+          if (this.connection.schema) this.dbName = this.connection.schema;
+          if (this.connection.db_version) this.dbVersion = this.connection.db_version;
+          if (msg.dbms) this.dbms = msg.dbms;
 
           console.log(this.connection);
         }
@@ -82,6 +89,7 @@ createApp({
 
       clearQueries() {
         this._queries = [];
+        this.queriesCount = 0;
       },
 
       onrequest() {

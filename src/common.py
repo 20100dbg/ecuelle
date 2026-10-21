@@ -4,6 +4,12 @@ import re
 import string
 
 
+class STR(Enum):
+    DBMS_POSTGRES = "postgres"
+    DBMS_MYSQL = "mysql"
+    DBMS_MSSQL = "mssql"
+
+
 class Result():
 
     def __init__(self):

@@ -2,16 +2,14 @@ Proxy
 - add parse_header() for every protocol
 -- retrieve packet_type, payload_length
 - read payload_length, use with tcp.read(x + payload_length)
-- detect/retrieve handshake postgre and mssql
+- detect/retrieve handshake mssql
 - mssql+postgres: pass payload instead of whole packet to parse_* methods
 - MSSQL: support SQL_VARIANT ?
 - TLS support
+- add get_db_info() method (fetch schema, username, version)
 
 Frontend
-- clear button
-- reverse order button
 - State (active, closed, etc)
-- queries count
 - separated list for handshakes
 - add columns :
 -- DBMS
@@ -19,7 +17,6 @@ Frontend
 - sql color syntax : https://github.com/scriptcoded/sql-highlight
 -- replace ? with params
 -- delete /**/ comments + trim()
-- search text
 
 Tests
 - complete and enable client.php

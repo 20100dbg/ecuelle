@@ -16,6 +16,24 @@ class Postgres():
         self.parse_packet(pkt)
 
 
+    @staticmethod
+    def get_db_info(sock):
+        query = b"select version();"
+        len_payload = len(query) + 5
+        msg = b"\x51" + len_payload.to_bytes(4, 'big') + query + b"\x00"
+
+        sock.send(msg)
+        data = sock.recv(65535)
+        logger.debug(data)
+
+
+        p = Postgres(data, None)
+        logger.debug(p.result)
+
+        # PostgreSQL 14.24 (Debian 14.24-1.pgdg13+2) on x86_64-pc-linux-gnu, compiled by gcc (Debian 14.2.0-19) 14.2.0, 64-bit
+
+
+
     def get_packet_type(self, pkt):
 
         if pkt[0] == 0:
@@ -46,8 +64,6 @@ class Postgres():
 
     def parse_packet(self, pkt):
 
-        logger.debug(f"self.packet_type {self.packet_type}")
-
         if self.packet_type == Postgres.PacketType.PACKET_QUERY:
             query = pkt[5:-1].decode()
 
@@ -61,6 +77,66 @@ class Postgres():
 
         elif self.packet_type == Postgres.PacketType.PACKET_ERROR:
             self.parse_ERROR(pkt)
+
+        elif self.packet_type == Postgres.PacketType.PACKET_STARTUP:
+            self.parse_STARTUP(pkt)
+
+        elif self.packet_type == Postgres.PacketType.PACKET_AUTH_REQUEST:
+            self.parse_AUTH_REQUEST(pkt)
+
+
+    def parse_STARTUP(self, pkt):
+        payload_length = int.from_bytes(pkt[0:4], "big")
+        protocol_major_version = int.from_bytes(pkt[4:6], "big")
+        protocol_minor_version = int.from_bytes(pkt[6:8], "big")
+
+        username = schema = ''
+
+        idx = 8
+        while idx < payload_length - 1:
+            idx_end = pkt.find(0, idx)
+            parameter_name = pkt[idx:idx_end].decode()
+
+            idx = idx_end + 1
+            idx_end = pkt.find(0, idx)
+            parameter_value = pkt[idx:idx_end].decode()
+            idx = idx_end + 1
+
+            if parameter_name == 'user':
+                username = parameter_value
+            elif parameter_name == 'database':
+                schema = parameter_value
+
+        self.result.connection = {'username': username, 'schema': schema}
+
+
+    def parse_AUTH_REQUEST(self, pkt):
+        auth_type = int.from_bytes(pkt[5:9], "big")
+
+        if auth_type == 12:
+            idx = 0
+            while idx < len(pkt):
+                type = pkt[idx]
+                idx += 1
+                payload_length = int.from_bytes(pkt[idx:idx+4], "big")
+
+                if type == 0x53: #Parameter status
+
+                    idx_start = idx + 4
+                    idx_end = pkt.find(0, idx_start)
+                    parameter_name = pkt[idx_start:idx_end].decode()
+
+                    idx_start = idx_end + 1
+                    idx_end = pkt.find(0, idx_start)
+                    parameter_value = pkt[idx_start:idx_end].decode()
+                    idx_start = idx_end + 1
+
+                    if parameter_name == "server_version":
+                        db_version = parameter_value.split()[0]
+                        self.result.connection = {'db_version': db_version}
+
+                idx = idx + payload_length
+
 
 
     def parse_ERROR(self, pkt):
@@ -127,8 +203,6 @@ class Postgres():
         self.result.cols = field_names
         self.result.rows = rows
         self.result.nb_rows = len(rows)
-
-
 
 
     class PacketType(Enum):
