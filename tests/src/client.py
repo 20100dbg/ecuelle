@@ -109,7 +109,7 @@ queries = [
 ]
 
 for query in queries:
-    if config['dbms'] == "mysql": res = mysql_query(config, query)
+    if config['dbms'] in ["mysql", "mariadb"]: res = mysql_query(config, query)
     elif config['dbms'] == "postgres": res = postgres_query(config, query)
     elif config['dbms'] == "mssql": res = mssql_query(config, query)
     

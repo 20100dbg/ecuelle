@@ -12,7 +12,6 @@ Frontend
 - State (active, closed, etc)
 - separated list for handshakes
 - add columns :
--- DBMS
 -- datetime
 - queries editing
 -- replace parameters placeholder with values

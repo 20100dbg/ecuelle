@@ -39,11 +39,12 @@ def main():
 
 class Packet():
     @staticmethod
-    def init(dbms, data, previous_packet_type):
-        if dbms == STR.DBMS_MYSQL : return Mysql(data, previous_packet_type)
-        elif dbms == STR.DBMS_POSTGRES : return Postgres(data, previous_packet_type)
-        elif dbms == STR.DBMS_MSSQL : return Mssql(data, previous_packet_type)
+    def parse(dbms, data, connection_state):
+        if dbms in [DBMS.MYSQL, DBMS.MARIADB] : return Mysql(data, connection_state)
+        elif dbms == DBMS.POSTGRES : return Postgres(data, connection_state)
+        elif dbms == DBMS.MSSQL : return Mssql(data, connection_state)
         else : return None
+
 
 
 class Proxy():
@@ -52,7 +53,7 @@ class Proxy():
         self.dbms = dbms
         self.conn_client = client
         self.conn_server = None
-        self.previous_packet_type = None
+        self.connection_state = ConnectionState.WAIT_HANDSHAKE
         
         t = threading.Thread(target=self.listen_server,args=[server_host, server_port])
         t.start()
@@ -62,6 +63,26 @@ class Proxy():
         t = threading.Thread(target=self.listen_client,args=[])
         t.start()
 
+    def send_message(self, p):
+        if p.result.query:
+            query = p.result.query
+            pretty_query = Utils.clean_query(query)
+            socketio.emit('msg', {'timestamp': time.time(), 'dbms': self.dbms, 'query': query, 'pretty_query': pretty_query})
+
+        if p.result.parameters:
+            socketio.emit('msg', {'timestamp': time.time(), 'dbms': self.dbms, 'parameters': p.result.parameters})
+
+        if p.result.connection:
+            socketio.emit('msg', {'timestamp': time.time(), 'dbms': self.dbms, 'connection': p.result.connection})
+
+        if p.result.error or p.result.rows:
+            socketio.emit('msg', {'timestamp': time.time(), 'dbms': self.dbms, 'error': p.result.error, 'result': {'cols': p.result.cols, 'rows': p.result.rows, 'nb_rows': p.result.nb_rows}})
+
+        if p.result.app_error:
+            socketio.emit('msg', {'timestamp': time.time(), 'dbms': self.dbms, 'app_error': p.result.app_error})
+
+
+
     def listen_client(self):
 
         while True:
@@ -70,26 +91,15 @@ class Proxy():
                 break
 
             try:
-                p = Packet.init(self.dbms, data, self.previous_packet_type)
+                p = Packet.parse(self.dbms, data, self.connection_state)
             except Exception as e:
                 logger.debug(f"listen_client Exception : {e}")
-                logger.debug(f"pkt={Utils.print_hex(data)}")
+                logger.debug(f"pkt=\n{Utils.print_hex(data)}")
                 p = {"result": Result()}
 
-            if p.result.query:
-                query = p.result.query
-                pretty_query = Utils.clean_query(query)
-                socketio.emit('msg', {'timestamp': time.time(), 'dbms': self.dbms, 'query': query, 'pretty_query': pretty_query})
+            self.connection_state = p.connection_state
+            self.send_message(p)
 
-            if p.result.parameters:
-                socketio.emit('msg', {'timestamp': time.time(), 'dbms': self.dbms, 'parameters': p.result.parameters})
-
-            if p.result.connection:
-                #p.result.connection
-                socketio.emit('msg', {'timestamp': time.time(), 'dbms': self.dbms, 'connection': p.result.connection})
-
-
-            self.previous_packet_type = p.packet_type
             if self.conn_server:
                 self.conn_server.send(data)
 
@@ -98,8 +108,7 @@ class Proxy():
 
 
     def listen_server(self, server_host, server_port):
-        logger.debug(f"Server listener running")
-        logger.info(f"{server_host}, {server_port}")
+        logger.info(f"Server listener running")
 
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             
@@ -114,28 +123,15 @@ class Proxy():
                     break
 
                 try:
-                    p = Packet.init(self.dbms, data, self.previous_packet_type)
+                    p = Packet.parse(self.dbms, data, self.connection_state)
                 except Exception as e:
                     logger.debug(f"listen_server Exception : {e}")
-                    logger.debug(f"pkt={Utils.print_hex(data)}")
+                    logger.debug(f"pkt=\n{Utils.print_hex(data)}")
                     p = {"result": Result()}
 
-                logger.debug(f"p {p}")
+                self.connection_state = p.connection_state
+                self.send_message(p)
 
-                if p.result.error or p.result.rows:
-                    if p.result.error:
-                        logger.debug(p.result.error)
-                    socketio.emit('msg', {'timestamp': time.time(), 'dbms': self.dbms, 'error': p.result.error, 
-                        'result': {'cols': p.result.cols, 'rows': p.result.rows, 'nb_rows': p.result.nb_rows}})
-
-                if p.result.connection:
-                    #p.result.connection
-                    socketio.emit('msg', {'timestamp': time.time(), 'dbms': self.dbms, 'connection': p.result.connection})
-
-                if p.result.app_error:
-                    socketio.emit('msg', {'timestamp': time.time(), 'dbms': self.dbms, 'app_error': p.result.app_error})
-
-                self.previous_packet_type = p.packet_type
                 if self.conn_client:
                     self.conn_client.send(data)
 
@@ -160,7 +156,6 @@ def main_loop(dbms, server_host, server_port, listening_port):
         socketio.emit('msg', {'status': {'client': 'connected'}})
 
         p = Proxy(dbms, client, server_host, server_port)
-
 
 
 if not os.getenv('DB_TYPE'):

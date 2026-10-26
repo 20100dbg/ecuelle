@@ -7,32 +7,17 @@ logger = logging.getLogger(__name__)
 
 class Postgres():
 
-    def __init__(self, pkt, previous_packet_type):
+    def __init__(self, pkt, connection_state):
         self.result = Result()
         self.packet_type = None
-        self.previous_packet_type = previous_packet_type
+        self.connection_state = connection_state
 
         self.parse_header(pkt)
         self.parse_packet(pkt)
 
-
-    @staticmethod
-    def get_db_info(sock):
-        query = b"select version();"
-        len_payload = len(query) + 5
-        msg = b"\x51" + len_payload.to_bytes(4, 'big') + query + b"\x00"
-
-        sock.send(msg)
-        data = sock.recv(65535)
-        logger.debug(data)
-
-
-        p = Postgres(data, None)
-        logger.debug(p.result)
-
-        # PostgreSQL 14.24 (Debian 14.24-1.pgdg13+2) on x86_64-pc-linux-gnu, compiled by gcc (Debian 14.2.0-19) 14.2.0, 64-bit
-
-
+    def parse_header(self, pkt):
+        self.packet_type = self.get_packet_type(pkt)
+        self.payload_length = int.from_bytes(pkt[1:5], "big")
 
     def get_packet_type(self, pkt):
 
@@ -55,12 +40,6 @@ class Postgres():
             return Postgres.PacketType(pkt[0])
 
         return Postgres.PacketType.PACKET_UNKNOWN
-
-
-    def parse_header(self, pkt):
-        self.packet_type = self.get_packet_type(pkt)
-        self.payload_length = int.from_bytes(pkt[1:5], "big")
-
 
     def parse_packet(self, pkt):
 

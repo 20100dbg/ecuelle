@@ -1,13 +1,22 @@
-import struct
-from enum import StrEnum
 import re
 import string
+import struct
+from enum import StrEnum, Enum, auto
 
 
-class STR(StrEnum):
-    DBMS_POSTGRES = "postgres"
-    DBMS_MYSQL = "mysql"
-    DBMS_MSSQL = "mssql"
+class ConnectionState(Enum):
+    WAIT_HANDSHAKE = auto()
+    WAIT_HANDSHAKE_RESPONSE = auto()
+    WAIT_HANDSHAKE_END = auto()
+    READY = auto()
+    WAIT_QUERY = auto()
+    WAIT_QUERY_RESPONSE = auto()
+
+class DBMS(StrEnum):
+    POSTGRES = "postgres"
+    MYSQL = "mysql"
+    MSSQL = "mssql"
+    MARIADB = "mariadb"
 
 
 class Result():
@@ -21,7 +30,7 @@ class Result():
         self.rows = None
         self.nb_rows = None
 
-        self.connection = None
+        self.connection = {}
         self.app_error = None
         
 

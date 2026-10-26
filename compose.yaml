@@ -31,6 +31,22 @@ services:
     networks:
       - network
 
+  mariadb:
+    image: mariadb:${DB_VERSION}
+    profiles: ["mariadb"]
+    environment:
+      MARIADB_ROOT_PASSWORD: ${DB_PASSWORD}
+      MARIADB_USER: ${DB_USER}
+      MARIADB_PASSWORD: ${DB_PASSWORD}
+      MARIADB_DATABASE: ${DB_NAME}
+    ports:
+      - "${DB_PORT:-3306}:3306"
+    volumes:
+      - mariadb_data:/var/lib/mysql
+      - ./conf/mysql/server.cnf:/etc/mysql/conf.d/custom.cnf
+    networks:
+      - network
+
   postgres:
     image: postgres:${DB_VERSION}
     profiles: ["postgres"]
@@ -52,6 +68,9 @@ services:
       ACCEPT_EULA: "Y"
       MSSQL_PID: Developer
       MSSQL_SA_PASSWORD: ${DB_PASSWORD}
+      MSSQL_USER: ${DB_USER}
+      MSSQL_PASSWORD: ${DB_PASSWORD}
+      MSSQL_DB: ${DB_NAME}
     ports:
       - "${DB_PORT:-1433}:1433"
     volumes:
@@ -60,26 +79,26 @@ services:
       - network
 
   test:
-      build:
-        context: .
-        dockerfile: tests/Dockerfile
-      profiles: ["test"]
+    build:
+      context: .
+      dockerfile: tests/Dockerfile
+    profiles: ["test"]
 
-      environment:
-        DB_HOST: app
-        PROXY_PORT: ${PROXY_PORT}
-        DB_TYPE: ${DB_TYPE}
-        DB_NAME: ${DB_NAME}
-        DB_USER: ${DB_USER}
-        DB_PASSWORD: ${DB_PASSWORD}
-        SQL_SCRIPTS_DIR: /app/sql
-      volumes:
-        - ./conf/mysql/client.cnf:/etc/mysql/conf.d/custom.cnf
-        - ${SQL_SCRIPTS_DIR:-./tests/fixtures}:/app/sql:ro
-      depends_on:
-        - app
-      networks:
-        - network
+    environment:
+      DB_HOST: app
+      PROXY_PORT: ${PROXY_PORT}
+      DB_TYPE: ${DB_TYPE}
+      DB_NAME: ${DB_NAME}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      SQL_SCRIPTS_DIR: /app/sql
+    volumes:
+      - ./conf/mysql/client.cnf:/etc/mysql/conf.d/custom.cnf
+      - ${SQL_SCRIPTS_DIR:-./tests/fixtures}:/app/sql:ro
+    depends_on:
+      - app
+    networks:
+      - network
 
 
 networks:
@@ -87,5 +106,6 @@ networks:
 
 volumes:
   mysql_data:
+  mariadb_data:
   postgres_data:
   mssql_data:

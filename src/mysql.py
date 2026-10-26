@@ -8,17 +8,14 @@ logger = logging.getLogger(__name__)
 
 class Mysql():
 
-    def __init__(self, pkt, previous_packet_type):
+    def __init__(self, pkt, connection_state):
         self.result = Result()
         self.packet_type = None
-        self.previous_packet_type = previous_packet_type
+        self.connection_state = connection_state
 
-        self.parse_packet(pkt)
+        self.parse_header(pkt, connection_state)
+        self.parse_packet(self.payload)
 
-        """
-        if self.previous_packet_type == Mysql.PacketType.PACKET_QUERY:
-            self.result.app_error = True
-        """
 
     #@staticmethod
     def replace_query(self, new_query):
@@ -28,16 +25,22 @@ class Mysql():
         return query_length + b"\x00\x16" + new_query
 
 
-    def parse_packet(self, pkt):
+    def parse_header(self, pkt, connection_state):
+        self.payload_length = int.from_bytes(pkt[0:3], "little")
+        self.packet_number = pkt[3]
+        self.payload = pkt[4:]
 
-        payload_length = int.from_bytes(pkt[0:3], "little")
-        packet_number = pkt[3]
-        payload = pkt[4:]
+        if len(self.payload) != self.payload_length:
+            logger.debug(f"len(self.payload) = {len(self.payload)}")
+            logger.debug(f"self.payload_length = {self.payload_length}")
+            #raise ValueError("Invalid payload length")
 
-        self.packet_type = self.get_packet_type(packet_number, payload_length, payload)
+        self.packet_type = self.get_packet_type(self.packet_number, self.payload_length, self.payload, connection_state)
+
+    def parse_packet(self, payload):
 
         # packet is > 16mb
-        if payload_length == 16777215:
+        if self.payload_length == 16777215:
             pass
 
         if self.packet_type == Mysql.PacketType.PACKET_OK:
@@ -58,9 +61,11 @@ class Mysql():
             self.result.query = query
 
         elif self.packet_type == Mysql.PacketType.PACKET_HANDSHAKE:
+            self.connection_state = ConnectionState.WAIT_HANDSHAKE_RESPONSE
             self.parse_HANDSHAKE(payload)
     
         elif self.packet_type == Mysql.PacketType.PACKET_HANDSHAKE_RESPONSE:
+            self.connection_state = ConnectionState.READY
             self.parse_HANDSHAKE_RESPONSE(payload)
 
         elif self.packet_type == Mysql.PacketType.PACKET_TABULAR_RESPONSE:
@@ -70,7 +75,7 @@ class Mysql():
             self.parse_USE(payload)
 
 
-    def get_packet_type(self, packet_number, payload_length, payload):
+    def get_packet_type(self, packet_number, payload_length, payload, connection_state):
 
         if payload[0] == 0 and len(payload) >= 7:
             return Mysql.PacketType.PACKET_OK
@@ -82,8 +87,7 @@ class Mysql():
             return Mysql.PacketType.PACKET_TABULAR_RESPONSE
         elif packet_number == 0 and (payload[0] == 0x0a or payload[0] == 0x09):
             return Mysql.PacketType.PACKET_HANDSHAKE
-        elif packet_number == 1 and self.previous_packet_type == Mysql.PacketType.PACKET_HANDSHAKE:
-        # len(payload) > 200 and int.from_bytes(payload[4:8], "little") == 16777216 and payload[9:32] == bytes([0]*23):
+        elif packet_number == 1 and connection_state == ConnectionState.WAIT_HANDSHAKE_RESPONSE:
             return Mysql.PacketType.PACKET_HANDSHAKE_RESPONSE
         elif packet_number == 2 and payload_length == 2:
             return Mysql.PacketType.PACKET_CACHING_SHA2
@@ -185,6 +189,8 @@ class Mysql():
 
 
     def parse_HANDSHAKE_RESPONSE(self, payload):
+        logger.debug(f"inside parse_HANDSHAKE_RESPONSE")
+
         self.client_capabilities = int.from_bytes(payload[0:2], "little")
         self.client_capabilities2 = int.from_bytes(payload[2:4], "little")
 
@@ -197,8 +203,8 @@ class Mysql():
         username = payload[32:idx].decode()
         logger.debug(f"username: {username}")
 
+        password_length = payload[idx+1]
         idx += 2
-        password_length = 32 #20
         password = payload[idx:idx+password_length]
         logger.debug(f"password: {password.hex()}")
 
@@ -216,7 +222,6 @@ class Mysql():
 
     def parse_SHOW(self, payload):
         logger.debug(f"show: {payload[1:-1]}")
-        #self.result.info = {'show': payload[1:-1].decode()}
 
     def parse_TABULAR_RESPONSE(self, payload):
         
@@ -258,7 +263,7 @@ class Mysql():
             if not field_name: field_name = "(empty string)"
             if not field_original_name: field_original_name = "(empty string)"
 
-            logger.info(f"field: {field_name} {field_type}")
+            logger.debug(f"field: {field_name} {field_type}")
             fields.append({'name': field_name, 'original_name': field_original_name, 'type': field_type})
 
             #skip 00 00

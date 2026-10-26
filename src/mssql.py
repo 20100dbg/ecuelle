@@ -8,29 +8,41 @@ logger = logging.getLogger(__name__)
 
 class Mssql():
 
-    def __init__(self, pkt, previous_packet_type):
+    def __init__(self, pkt, connection_state):
         self.result = Result()
         self.packet_type = None
-        self.previous_packet_type = previous_packet_type
+        self.connection_state = connection_state
+        self.channel = 0
 
+        self.parse_header(pkt, connection_state)
         self.parse_packet(pkt)
 
+    def parse_header(self, pkt, connection_state):
+        self.packet_type = self.get_packet_type(pkt)
+        status = pkt[1]
+        packet_length = int.from_bytes(pkt[2:4], "big")
+        self.channel = int.from_bytes(pkt[4:5], "big")
 
     def parse_packet(self, pkt):
-        self.packet_type = self.get_packet_type(pkt)
-
-        #logger.debug(f"self.packet_type={self.packet_type}")
-
         if self.packet_type == Mssql.PacketType.PACKET_BATCH:
+            self.connection_state = ConnectionState.WAIT_QUERY_RESPONSE
             self.parse_BATCH(pkt)
 
-        elif self.packet_type == Mssql.PacketType.PACKET_RESPONSE and \
-            self.previous_packet_type == Mssql.PacketType.PACKET_BATCH:
-            self.parse_RESPONSE(pkt)
+        elif self.packet_type == Mssql.PacketType.PACKET_RESPONSE:
+
+            if self.connection_state in [ConnectionState.WAIT_HANDSHAKE_END, ConnectionState.WAIT_QUERY_RESPONSE, ConnectionState.READY]:
+                #self.connection_state = ConnectionState.READY
+                self.parse_RESPONSE(pkt)
+
+            if self.connection_state == ConnectionState.WAIT_HANDSHAKE_RESPONSE:
+                self.connection_state = ConnectionState.WAIT_HANDSHAKE_END
+
+
+        elif self.packet_type == Mssql.PacketType.PACKET_PRELOGIN and self.connection_state != ConnectionState.WAIT_HANDSHAKE_END:
+            self.connection_state = ConnectionState.WAIT_HANDSHAKE_RESPONSE
 
 
     def get_packet_type(self, pkt):
-
         if pkt[0] in [packet_type.value for packet_type in Mssql.PacketType]:
             return Mssql.PacketType(pkt[0])
 
@@ -49,21 +61,62 @@ class Mssql():
         self.result.query = pkt[idx:].decode()
 
     def parse_RESPONSE(self, pkt):
-        if pkt[8] == 0x81:
-            self.parse_results(pkt)
-        elif pkt[8] == 0xaa:
-            self.parse_error(pkt)
-        elif pkt[8] == 0xe3:
-            #EnvChange
-            pass
-        elif pkt[8] == 0xe4:
-            #Session state
-            pass
-        elif pkt[8] == 0xfd:
-            #Done
-            pass
-        else:
-            logger.debug(f"Unkown packet, pkt[8]={pkt[8]}")
+
+        idx = 8
+        payload_length = int.from_bytes(pkt[2:4], "little")
+
+        while idx < payload_length - 1:
+            token_type = pkt[idx]
+
+            if token_type == 0x81:
+                token_length = int.from_bytes(pkt[idx+1:idx+3], "little")
+                idx += 3
+                self.parse_results(pkt)
+                break
+            elif token_type == 0xaa:
+                token_length = int.from_bytes(pkt[idx+1:idx+3], "little")
+                idx += 3
+                self.parse_error(pkt)
+                break
+            elif token_type == 0xe3: #EnvChange
+                token_length = int.from_bytes(pkt[idx+1:idx+3], "little")
+                idx += 3
+                envchange_type = pkt[idx]
+
+                if envchange_type  == 1: #Database
+                    new_value_length = pkt[idx+1]
+                    new_value = pkt[idx+2:idx+2+(new_value_length*2)].decode('utf-16')
+                    self.result.connection['schema'] = new_value
+
+            elif token_type == 0xad: #LoginAck
+                token_length = int.from_bytes(pkt[idx+1:idx+3], "little")
+                idx += 3
+                envchange_type = pkt[idx]
+                server_name_length = pkt[idx+5]
+                server_name = pkt[idx+6:idx+6+(server_name_length*2)].decode('utf-16')
+
+                server_version = pkt[idx+6+(server_name_length*2):idx+6+(server_name_length*2)+4]
+                server_version = f"{server_version[0]}.{server_version[1]}.{int.from_bytes(server_version[2:4], 'big')}"
+
+                self.result.connection['db_version'] = server_version
+
+            elif token_type == 0xae: #FeatureExtAct
+                token_length = int.from_bytes(pkt[idx+2:idx+6], "little")
+                idx += 7
+            elif token_type == 0xe4: #Session state
+                token_length = int.from_bytes(pkt[idx+1:idx+5], "little")
+                idx += 5
+            elif token_type == 0xfd: #Done
+                token_length = int.from_bytes(pkt[idx+1:idx+3], "little")
+                idx += 3
+                break
+            elif token_type == 0xab: #Info
+                token_length = int.from_bytes(pkt[idx+1:idx+3], "little")
+                idx += 3
+            else:
+                logger.debug(f"Unknown packet, token_type={hex(token_type)} {token_type}")
+
+            idx += token_length
 
 
     def parse_error(self, pkt):
@@ -410,5 +463,6 @@ class Mssql():
         PACKET_RESPONSE = 0x04
         PACKET_TM_REQUEST = 0x0e
         PACKET_PRELOGIN = 0x12
+        PACKET_TLS = 0x17
         PACKET_UNKNOWN = 0xff
         

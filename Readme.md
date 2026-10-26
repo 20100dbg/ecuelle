@@ -69,3 +69,24 @@ Run fixtures before testing SQL queries
 ```
 SQL_SCRIPTS_DIR=./tests/fixtures/<DBMS> docker compose run --name ecuelle-test --rm test
 ```
+
+### Dependancies
+
+[sql-highlight](https://github.com/scriptcoded/sql-highlight)
+
+[Bulma CSS](https://bulma.io/)
+
+[Vue3](https://vuejs.org/)
+
+Build sql-highlight
+```
+#needs npm
+sudo apt install npm
+git clone https://github.com/scriptcoded/sql-highlight
+cd sql-highlight/
+npm init -y
+npm install sql-highlight esbuild
+echo -e 'const { highlight, getSegments } = require("sql-highlight");\nwindow.highlight = highlight;\nwindow.getSegments = getSegments;' > entry.js
+npx esbuild entry.js --bundle --minify --platform=browser --format=iife --target=es2018 --outfile=sql-highlight.browser.js
+```
+
