@@ -1,12 +1,11 @@
-import struct
-from math import ceil
-from common import *
-from enum import Enum
 import logging
-import sys, traceback
+from enum import Enum
+
+from common import *
+
 logger = logging.getLogger(__name__)
 
-class Mysql():
+class Mysql:
 
     def __init__(self, pkt, connection_state):
         self.result = Result()
@@ -110,13 +109,8 @@ class Mysql():
 
     def parse_EXECUTE_STATEMENT(self, payload):
         
-        statement_id = int.from_bytes(payload[1:5], "little")
-        flags = payload[5]
-        iterations = int.from_bytes(payload[6:10], "little")
-        
         #if there is parameters
         if len(payload) > 10:
-            bound_flag = payload[11]
             idx = 12
 
             nb_parameters = 0
@@ -138,12 +132,12 @@ class Mysql():
             self.result.parameters = parameters
 
     def parse_OK(self, payload):
-        response_code = payload[0]
+        #response_code = payload[0]
         
         if len(payload) == 7:
             self.result.nb_rows = payload[1]
-            server_status = int.from_bytes(payload[3:4], "little")
-            warnings = int.from_bytes(payload[5:6], "little")
+            #server_status = int.from_bytes(payload[3:4], "little")
+            #warnings = int.from_bytes(payload[5:6], "little")
 
 
     def parse_ERR(self, payload):
@@ -159,27 +153,23 @@ class Mysql():
 
         idx = payload.find(0)
         db_version = payload[1:idx].decode()
-        thread_id = int.from_bytes(payload[idx+1:idx+5], "little")
 
         if version == 10:
             salt1 = payload[idx+5:idx+13]
             cap1 = payload[idx+14:idx+16]
-            character_set = payload[idx+16]
-            status_flags = payload[idx+17:idx+19]
             cap2 = payload[idx+19:idx+21]
             auth_plugin_data_len = 0
-            auth_plugin_name = ""
             self.server_capabilities = int.from_bytes(cap1+cap2, "little")
 
-            if self.check_capability(self.server_capabilities, Mysql.Capability.CLIENT_PLUGIN_AUTH.value):
-                auth_plugin_data_len = payload[idx+21]
+            #if self.check_capability(self.server_capabilities, Mysql.Capability.CLIENT_PLUGIN_AUTH.value):
+            #    auth_plugin_data_len = payload[idx+21]
             
             salt_length = max(13, auth_plugin_data_len-8)-1
             salt2 = payload[idx+32:idx+32+salt_length]
             salt = salt1 + salt2
             
-            if self.check_capability(self.server_capabilities, Mysql.Capability.CLIENT_PLUGIN_AUTH.value):
-                auth_plugin_name = payload[idx+33+salt_length:-1]
+            #if self.check_capability(self.server_capabilities, Mysql.Capability.CLIENT_PLUGIN_AUTH.value):
+            #    auth_plugin_name = payload[idx+33+salt_length:-1]
 
 
         elif version == 9:
@@ -189,13 +179,10 @@ class Mysql():
 
 
     def parse_HANDSHAKE_RESPONSE(self, payload):
-        logger.debug(f"inside parse_HANDSHAKE_RESPONSE")
+        logger.debug("inside parse_HANDSHAKE_RESPONSE")
 
         self.client_capabilities = int.from_bytes(payload[0:2], "little")
         self.client_capabilities2 = int.from_bytes(payload[2:4], "little")
-
-        max_packet = int.from_bytes(payload[4:8], "little")
-        character_set = payload[8]
 
         #23 reserved
 
@@ -235,7 +222,7 @@ class Mysql():
         for _ in range(nb_fields):
 
             packet_length = int.from_bytes(payload[idx:idx+3], "little")
-            packet_number = payload[idx + 3]
+            #packet_number = payload[idx + 3]
 
             idx += 4
             fields_name = ['catalog', 'database', 'table', 'original_table', 'name', 'original_name']
@@ -253,12 +240,9 @@ class Mysql():
 
                 idx += 1+field_length
 
-            charset = payload[idx+1]
+            #charset = payload[idx+1]
             field_length = int.from_bytes(payload[idx+3:idx+7], "little")
             field_type = payload[idx+7]
-
-            flags = payload[idx+8:idx+10] # int.from_bytes(payload[idx:idx+2], "little")
-            decimals = payload[idx+10]
 
             if not field_name: field_name = "(empty string)"
             if not field_original_name: field_original_name = "(empty string)"
@@ -279,7 +263,7 @@ class Mysql():
             row = []
 
             packet_length = int.from_bytes(payload[idx:idx+3], "little")
-            packet_number = payload[idx+3]
+            #packet_number = payload[idx+3]
             response_code = payload[idx+4]
             idx += 4
 

@@ -1,27 +1,25 @@
-import struct
-from common import *
-from enum import Enum
-import logging
-import sys, traceback
 import datetime
+import logging
+import struct
+from enum import Enum
+
+from common import *
+
 logger = logging.getLogger(__name__)
 
-class Mssql():
+class Mssql:
 
     def __init__(self, pkt, connection_state):
         self.result = Result()
         self.packet_type = None
         self.connection_state = connection_state
-        self.channel = 0
 
         self.parse_header(pkt, connection_state)
         self.parse_packet(pkt)
 
     def parse_header(self, pkt, connection_state):
         self.packet_type = self.get_packet_type(pkt)
-        status = pkt[1]
-        packet_length = int.from_bytes(pkt[2:4], "big")
-        self.channel = int.from_bytes(pkt[4:5], "big")
+        #packet_length = int.from_bytes(pkt[2:4], "big")
 
     def parse_packet(self, pkt):
         if self.packet_type == Mssql.PacketType.PACKET_BATCH:
@@ -50,11 +48,7 @@ class Mssql():
 
 
     def parse_BATCH(self, pkt):
-        status = pkt[1]
         packet_length = int.from_bytes(pkt[2:4], "big")
-        channel = int.from_bytes(pkt[4:6], "big")
-        packet_number = pkt[6]
-        window = pkt[7]
         headers_length = int.from_bytes(pkt[8:12], "little")
         idx = packet_length - (packet_length - headers_length - 8)
 
@@ -93,7 +87,7 @@ class Mssql():
                 idx += 3
                 envchange_type = pkt[idx]
                 server_name_length = pkt[idx+5]
-                server_name = pkt[idx+6:idx+6+(server_name_length*2)].decode('utf-16')
+                #server_name = pkt[idx+6:idx+6+(server_name_length*2)].decode('utf-16')
 
                 server_version = pkt[idx+6+(server_name_length*2):idx+6+(server_name_length*2)+4]
                 server_version = f"{server_version[0]}.{server_version[1]}.{int.from_bytes(server_version[2:4], 'big')}"
@@ -120,29 +114,24 @@ class Mssql():
 
 
     def parse_error(self, pkt):
-        token_length = int.from_bytes(pkt[9:10], "little")
-        sql_error_number = int.from_bytes(pkt[11:15], "little")
+        #token_length = int.from_bytes(pkt[9:10], "little")
+        #sql_error_number = int.from_bytes(pkt[11:15], "little")
         state = pkt[15]
-        severity = pkt[16]
+        #severity = pkt[16]
         message_length = int.from_bytes(pkt[17:19], "little")
         message = pkt[19:19+(message_length*2)].decode('utf-16')
         self.result.error = {'code': '', 'state': state, 'message': message}
 
 
     def parse_results(self, pkt):
-        status = pkt[1]
-        packet_length = int.from_bytes(pkt[2:4], "big")
-        channel = int.from_bytes(pkt[4:6], "big")
-        packet_number = pkt[6]
-        window = pkt[7]
+        #packet_length = int.from_bytes(pkt[2:4], "big")
 
         nb_columns = int.from_bytes(pkt[9:11], "little")
         result = []
 
         idx = 11
         fields = []
-
-        row_count = int.from_bytes(pkt[-8:], "little")
+        #row_count = int.from_bytes(pkt[-8:], "little")
 
         for _ in range(nb_columns):
 
@@ -150,7 +139,7 @@ class Mssql():
             #flags = pkt[idx+4:idx+6]
             field_type = pkt[idx+6]
             type_size = 0
-            scale = precision = table_name = None
+            scale = precision = None
 
             if field_type not in [packet_type.value for packet_type in Mssql.FieldType]:
                 logger.debug(f"type unknown ({field_type})")
@@ -210,7 +199,7 @@ class Mssql():
                 type_size = int.from_bytes(pkt[idx+7:idx+11], "little")
                 idx += 12
                 table_name_length = int.from_bytes(pkt[idx:idx+2], "little")
-                table_name = pkt[idx+2:idx+2+(table_name_length*2)].decode()
+                #table_name = pkt[idx+2:idx+2+(table_name_length*2)].decode()
                 idx += 2+(table_name_length*2)
 
 
@@ -251,7 +240,7 @@ class Mssql():
                 elif fields[i]['type'] in [Mssql.FieldType.FIELD_TYPE_DECIMAL.value, 
                                            Mssql.FieldType.FIELD_TYPE_NUMERIC.value]:
                     field_length = 4
-                    sign = pkt[idx+1]
+                    #sign = pkt[idx+1]
                     field_value = struct.unpack("<i", pkt[idx+2:idx+2+field_length])[0] / 100
                     idx += 2
 
@@ -388,7 +377,7 @@ class Mssql():
                                            ]:
                     if fields[i]['size'] == 65535:
                         field_length = int.from_bytes(pkt[idx:idx+8], "little")
-                        chunk_length = int.from_bytes(pkt[idx+8:idx+12], "little")
+                        #chunk_length = int.from_bytes(pkt[idx+8:idx+12], "little")
                         field_value = pkt[idx+12:idx+12+field_length]
                         idx += 12 + 4
                     else:
@@ -399,7 +388,7 @@ class Mssql():
                     field_value = Utils.hex(field_value)
 
                 elif fields[i]['type'] == Mssql.FieldType.FIELD_TYPE_XML.value:
-                    plp_length = struct.unpack("<q", pkt[idx:idx+8])
+                    #plp_length = struct.unpack("<q", pkt[idx:idx+8])
                     field_length = int.from_bytes(pkt[idx+8:idx+12], "little")
                     field_value = pkt[idx+12:idx+12+field_length].decode()
                     idx += 12 + 4

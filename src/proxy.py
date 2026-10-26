@@ -1,17 +1,16 @@
-import gevent
 import logging.config
 import os
-import signal
 import socket
-import sys
 import threading
 import time
-from flask import Flask, request, make_response
-from flask_socketio import SocketIO, emit
+
+from flask import Flask, make_response
+from flask_socketio import SocketIO
+
 from common import *
+from mssql import *
 from mysql import *
 from postgres import *
-from mssql import *
 
 level = logging.DEBUG
 log_filename = "/dev/stdout/" #"proxy.log"
@@ -31,13 +30,14 @@ socketio = SocketIO(app, cors_allowed_origins='*',async_mode='gevent')
 
 @app.route("/")
 def main():
-    tpl = open('static/main.html', 'r').read()
+    with open('static/main.html', 'r') as f:
+        tpl = f.read()
     response = make_response(tpl)
     response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
     return response
 
 
-class Packet():
+class Packet:
     @staticmethod
     def parse(dbms, data, connection_state):
         if dbms in [DBMS.MYSQL, DBMS.MARIADB] : return Mysql(data, connection_state)
@@ -47,7 +47,7 @@ class Packet():
 
 
 
-class Proxy():
+class Proxy:
 
     def __init__(self, dbms, client, server_host, server_port):
         self.dbms = dbms
@@ -92,7 +92,7 @@ class Proxy():
 
             try:
                 p = Packet.parse(self.dbms, data, self.connection_state)
-            except Exception as e:
+            except ValueError as e:
                 logger.debug(f"listen_client Exception : {e}")
                 logger.debug(f"pkt=\n{Utils.print_hex(data)}")
                 p = {"result": Result()}
@@ -108,7 +108,7 @@ class Proxy():
 
 
     def listen_server(self, server_host, server_port):
-        logger.info(f"Server listener running")
+        logger.info("Server listener running")
 
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             
@@ -124,7 +124,7 @@ class Proxy():
 
                 try:
                     p = Packet.parse(self.dbms, data, self.connection_state)
-                except Exception as e:
+                except ValueError as e:
                     logger.debug(f"listen_server Exception : {e}")
                     logger.debug(f"pkt=\n{Utils.print_hex(data)}")
                     p = {"result": Result()}
@@ -155,7 +155,7 @@ def main_loop(dbms, server_host, server_port, listening_port):
         logger.info(f"Client connected: {client_address}")
         socketio.emit('msg', {'status': {'client': 'connected'}})
 
-        p = Proxy(dbms, client, server_host, server_port)
+        Proxy(dbms, client, server_host, server_port)
 
 
 if not os.getenv('DB_TYPE'):

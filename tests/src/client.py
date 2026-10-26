@@ -1,8 +1,9 @@
+import logging.config
+import os
+
+import mssql_python
 import MySQLdb
 import psycopg
-import mssql_python
-import os
-import logging.config
 
 level = logging.DEBUG
 log_filename = "test.log"
@@ -27,7 +28,7 @@ def mysql_query(config, query):
             with conn.cursor() as cur:
                 cur.execute(query)
                 return cur.fetchall()
-        except Exception as e:
+        except MySQLdb.Error as e:
             logger.debug(f"Error: {e}")
             print(e)
 
@@ -44,7 +45,7 @@ def postgres_query(config, query):
             with conn.cursor() as cur:
                 cur.execute(query)
                 return cur.fetchall()
-        except Exception as e:
+        except psycopg.Error as e:
             print(e)
 
 def mssql_query(config, query):
@@ -57,7 +58,7 @@ Encrypt=No;"""
             with conn.cursor() as cur:
                 cur.execute(query)
                 return cur.fetchall()
-        except Exception as e:
+        except mssql_python.Error as e:
             print(e)
 
 

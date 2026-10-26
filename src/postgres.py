@@ -1,11 +1,11 @@
-import struct
-from common import *
-from enum import Enum
 import logging
-import sys, traceback
+from enum import Enum
+
+from common import *
+
 logger = logging.getLogger(__name__)
 
-class Postgres():
+class Postgres:
 
     def __init__(self, pkt, connection_state):
         self.result = Result()
@@ -66,8 +66,6 @@ class Postgres():
 
     def parse_STARTUP(self, pkt):
         payload_length = int.from_bytes(pkt[0:4], "big")
-        protocol_major_version = int.from_bytes(pkt[4:6], "big")
-        protocol_minor_version = int.from_bytes(pkt[6:8], "big")
 
         username = schema = ''
 
@@ -119,15 +117,13 @@ class Postgres():
 
 
     def parse_ERROR(self, pkt):
-        payload_length = int.from_bytes(pkt[1:5], "big")
-        
         idx = 5
         idx_end = pkt.find(0, idx)
-        severity = pkt[idx+1:idx_end]
+        #severity = pkt[idx+1:idx_end]
 
         idx = idx_end + 1
         idx_end = pkt.find(0, idx)
-        text = pkt[idx+1:idx_end]
+        #text = pkt[idx+1:idx_end]
 
         idx = idx_end + 1
         idx_end = pkt.find(0, idx+1)
@@ -142,7 +138,6 @@ class Postgres():
 
 
     def parse_ROW_DESCRIPTION(self, pkt):
-        payload_length = int.from_bytes(pkt[1:5], "big")
         field_count = int.from_bytes(pkt[5:7], "big")
         idx = 7
         field_names = []
@@ -158,7 +153,7 @@ class Postgres():
 
 
         while pkt[idx] == Postgres.PacketType.PACKET_DATA_ROW.value:
-            payload_length = int.from_bytes(pkt[idx+1:idx+5], "big")
+            #payload_length = int.from_bytes(pkt[idx+1:idx+5], "big")
             field_count = int.from_bytes(pkt[idx+5:idx+7], "big")
             idx += 7
 
