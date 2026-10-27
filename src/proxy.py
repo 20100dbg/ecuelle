@@ -46,7 +46,6 @@ class Packet:
         else : return None
 
 
-
 class Proxy:
 
     def __init__(self, dbms, client, server_host, server_port):
@@ -63,23 +62,23 @@ class Proxy:
         t = threading.Thread(target=self.listen_client,args=[])
         t.start()
 
-    def send_message(self, p):
-        if p.result.query:
-            query = p.result.query
+    def send_message(self, res):
+        if res.query:
+            query = res.query
             pretty_query = Utils.clean_query(query)
             socketio.emit('msg', {'timestamp': time.time(), 'dbms': self.dbms, 'query': query, 'pretty_query': pretty_query})
 
-        if p.result.parameters:
-            socketio.emit('msg', {'timestamp': time.time(), 'dbms': self.dbms, 'parameters': p.result.parameters})
+        if res.parameters:
+            socketio.emit('msg', {'timestamp': time.time(), 'dbms': self.dbms, 'parameters': res.parameters})
 
-        if p.result.connection:
-            socketio.emit('msg', {'timestamp': time.time(), 'dbms': self.dbms, 'connection': p.result.connection})
+        if res.connection:
+            socketio.emit('msg', {'timestamp': time.time(), 'dbms': self.dbms, 'connection': res.connection})
 
-        if p.result.error or p.result.rows:
-            socketio.emit('msg', {'timestamp': time.time(), 'dbms': self.dbms, 'error': p.result.error, 'result': {'cols': p.result.cols, 'rows': p.result.rows, 'nb_rows': p.result.nb_rows}})
+        if res.error or res.cols:
+            socketio.emit('msg', {'timestamp': time.time(), 'dbms': self.dbms, 'error': res.error, 'result': {'cols': res.cols, 'rows': res.rows, 'nb_rows': res.nb_rows}})
 
-        if p.result.app_error:
-            socketio.emit('msg', {'timestamp': time.time(), 'dbms': self.dbms, 'app_error': p.result.app_error})
+        if res.parse_error:
+            socketio.emit('msg', {'timestamp': time.time(), 'dbms': self.dbms, 'parse_error': res.parse_error})
 
 
 
@@ -92,13 +91,16 @@ class Proxy:
 
             try:
                 p = Packet.parse(self.dbms, data, self.connection_state)
-            except ValueError as e:
+                res = p.result
+            except Exception as e:
                 logger.debug(f"listen_client Exception : {e}")
                 logger.debug(f"pkt=\n{Utils.print_hex(data)}")
-                p = {"result": Result()}
+                res = Result(parse_error=str(e))
 
-            self.connection_state = p.connection_state
-            self.send_message(p)
+            self.send_message(res)
+
+            if p.connection_state:
+                self.connection_state = p.connection_state
 
             if self.conn_server:
                 self.conn_server.send(data)
@@ -124,13 +126,16 @@ class Proxy:
 
                 try:
                     p = Packet.parse(self.dbms, data, self.connection_state)
-                except ValueError as e:
+                    res = p.result
+                except Exception as e:
                     logger.debug(f"listen_server Exception : {e}")
                     logger.debug(f"pkt=\n{Utils.print_hex(data)}")
-                    p = {"result": Result()}
+                    res = Result(parse_error=str(e))
 
-                self.connection_state = p.connection_state
-                self.send_message(p)
+                self.send_message(res)
+
+                if p.connection_state:
+                    self.connection_state = p.connection_state
 
                 if self.conn_client:
                     self.conn_client.send(data)

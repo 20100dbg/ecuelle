@@ -1,5 +1,7 @@
 import string
 from enum import Enum, StrEnum, auto
+from dataclasses import dataclass, field
+from typing import Any
 
 
 class ConnectionState(Enum):
@@ -16,21 +18,19 @@ class DBMS(StrEnum):
     MSSQL = "mssql"
     MARIADB = "mariadb"
 
-
+@dataclass
 class Result:
+    query: str | None = None
+    parameters: dict[str, Any] | None = None
 
-    def __init__(self):
-        self.query = None
-        self.parameters = None
-        
-        self.error = None
-        self.cols = None
-        self.rows = None
-        self.nb_rows = None
+    error: str | None = None
+    cols: list[str] | None = None
+    rows: list[Any] | None = None
+    nb_rows: int | None = -1
 
-        self.connection = {}
-        self.app_error = None
-        
+    connection: dict[str, Any] = field(default_factory=dict)
+    parse_error: str | None = None
+
 
 class Utils:
 

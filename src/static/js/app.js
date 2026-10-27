@@ -68,8 +68,8 @@ createApp({
           this._queries.push(q)
         }
 
-        if (msg.app_error) {
-          this._queries[this._queries.length-1]['app_error'] = msg.app_error;
+        if (msg.parse_error) {
+          this._queries[this._queries.length-1]['parse_error'] = msg.parse_error;
         }
 
         if (msg.result) {

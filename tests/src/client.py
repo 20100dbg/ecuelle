@@ -105,7 +105,8 @@ queries = [
     "SELECT * FROM users;",
     "SELECT * FROM data;",
     "SELECT * FROM NOT_A_TABLE;",
-    "SELECT '',0,null"
+    "SELECT '',0,null",
+    "SELECT * FROM users WHERE id = 9999;",
 ]
 
 for query in queries:

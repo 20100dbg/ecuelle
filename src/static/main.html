@@ -55,14 +55,14 @@
                         </td>
                         <td>
                             <code v-html="query.cmdHighlight"></code>
-                            <p class="error" v-if="query.error">{{query.error}}</p>
-                            <p class="error" v-if="query.app_error">Error while parsing results :(</p>
+                            <p class="error" v-if="query.error">{{query.error.message}}</p>
+                            <p class="error" v-if="query.parse_error">Error while parsing results ({{query.parse_error}})</p>
 
                             <!-- results -->
-                            <details v-if="query.result.nb_rows > 0">
+                            <details v-if="query.result.nb_rows > -1">
                                 <summary>Result: {{query.result.nb_rows}} rows</summary>
 
-                                <div class="table-container" v-if="!query.result.error">
+                                <div class="table-container">
                                     <table class="table is-fullwidth is-bordered data">
                                         <thead>
                                             <tr>
