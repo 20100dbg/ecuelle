@@ -63,7 +63,8 @@ createApp({
         }
 
         if (msg.query) {
-          let q = {'cmd': msg.query, 'cmdHighlight': window.highlight(msg.query, { html: true }), 'result': ''}
+          prettyQuery = window.highlight(msg.query, { html: true });
+          let q = {'cmd': msg.query, 'cmdHighlight': prettyQuery, 'result': ''}
           this._queries.push(q)
         }
 

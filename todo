@@ -1,21 +1,18 @@
 Proxy
-- add parse_header() for every protocol
--- retrieve packet_type, payload_length
 - read payload_length, use with tcp.read(x + payload_length)
-- detect/retrieve handshake mssql
-- mssql+postgres: pass payload instead of whole packet to parse_* methods
 - MSSQL: support SQL_VARIANT ?
 - TLS support
-- add get_db_info() method (fetch schema, username, version)
 
 Frontend
-- State (active, closed, etc)
-- separated list for handshakes
+- fix/enhance Status (active, closed, etc)
 - add columns :
 -- datetime
+-- connection (or group by connection)
 - queries editing
 -- replace parameters placeholder with values
 -- delete /**/ comments + trim()
+- query state indicator (OK, pending, error)
+- advanced filtering (by query state, instruction(select/update/delete))
 
 Tests
 - complete and enable client.php
@@ -29,4 +26,3 @@ Tests
 
 Investigate
 - prepared statement client-side & server-side
-- run test with mssql auto start queries ? even without env var

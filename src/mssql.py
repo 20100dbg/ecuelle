@@ -52,7 +52,7 @@ class Mssql:
         headers_length = int.from_bytes(pkt[8:12], "little")
         idx = packet_length - (packet_length - headers_length - 8)
 
-        self.result.query = pkt[idx:].decode()
+        self.result.query = pkt[idx:].decode('utf-16')
 
     def parse_RESPONSE(self, pkt):
 
@@ -205,7 +205,7 @@ class Mssql:
 
             name_length = pkt[idx]
             idx += 1
-            name = pkt[idx:idx+(name_length*2)].decode()
+            name = pkt[idx:idx+(name_length*2)].decode('utf-16')
             idx += name_length*2
 
             data = {'name': name, 'type': field_type, 'size': type_size}
@@ -355,7 +355,6 @@ class Mssql:
                         field_value = pkt[idx+2:idx+2+field_length].decode()
                         idx += 2
 
-
                 elif fields[i]['type'] in [Mssql.FieldType.FIELD_TYPE_TEXT.value,
                                            Mssql.FieldType.FIELD_TYPE_NTEXT.value,
                                            Mssql.FieldType.FIELD_TYPE_IMAGE.value
@@ -390,7 +389,8 @@ class Mssql:
                 elif fields[i]['type'] == Mssql.FieldType.FIELD_TYPE_XML.value:
                     #plp_length = struct.unpack("<q", pkt[idx:idx+8])
                     field_length = int.from_bytes(pkt[idx+8:idx+12], "little")
-                    field_value = pkt[idx+12:idx+12+field_length].decode()
+                    field_value = pkt[idx+12:idx+12+field_length].decode('utf-16')
+
                     idx += 12 + 4
 
                 elif fields[i]['type'] == Mssql.FieldType.FIELD_TYPE_GUID.value:

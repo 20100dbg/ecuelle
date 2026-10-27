@@ -63,7 +63,6 @@ Encrypt=No;"""
 
 
 
-
 if not os.getenv('DB_TYPE'):
     logger.debug("Please set DB_TYPE")
     raise ValueError("Missing DB_TYPE parameter")
