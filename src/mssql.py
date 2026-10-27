@@ -342,33 +342,51 @@ class Mssql:
 
 
                 elif fields[i]['type'] in [Mssql.FieldType.FIELD_TYPE_BIGCHAR.value,
-                                           Mssql.FieldType.FIELD_TYPE_NCHAR.value,
-                                           Mssql.FieldType.FIELD_TYPE_NVARCHAR.value,
-                                           Mssql.FieldType.FIELD_TYPE_BIGVARCHAR.value,
-                                          ]:
+                                           Mssql.FieldType.FIELD_TYPE_BIGVARCHAR.value]:
+                    field_length = int.from_bytes(pkt[idx:idx+2], "little")
+
+                    if fields[i]['size'] == 65535:
+                        field_value = pkt[idx+12:idx+12+field_length]
+                        idx += 12 + 4
+                    else:
+                        field_value = pkt[idx+2:idx+2+field_length]
+                        idx += 2
+                    field_value = field_value.decode('utf-8')
+
+                elif fields[i]['type'] in [Mssql.FieldType.FIELD_TYPE_NCHAR.value,
+                                           Mssql.FieldType.FIELD_TYPE_NVARCHAR.value]:
                     field_length = int.from_bytes(pkt[idx:idx+2], "little")
                     
                     if fields[i]['size'] == 65535:
-                        field_value = pkt[idx+12:idx+12+field_length].decode()
+                        field_value = pkt[idx+12:idx+12+field_length]
                         idx += 12 + 4
                     else:
-                        field_value = pkt[idx+2:idx+2+field_length].decode()
+                        field_value = pkt[idx+2:idx+2+field_length]
                         idx += 2
+                    field_value = field_value.decode('utf-16')
 
-                elif fields[i]['type'] in [Mssql.FieldType.FIELD_TYPE_TEXT.value,
-                                           Mssql.FieldType.FIELD_TYPE_NTEXT.value,
-                                           Mssql.FieldType.FIELD_TYPE_IMAGE.value
-                                          ]:
+                elif fields[i]['type'] == Mssql.FieldType.FIELD_TYPE_IMAGE.value:
                     textptr_length = pkt[idx]
                     idx += 1 + textptr_length + 8
                     field_length = int.from_bytes(pkt[idx:idx+4], "little")
                     field_value = pkt[idx+4:idx+4+field_length]
+                    field_value = Utils.hex(field_value)
+                    idx += 4
 
-                    if fields[i]['type'] == Mssql.FieldType.FIELD_TYPE_IMAGE.value:
-                        field_value = Utils.hex(field_value)
-                    else:
-                        field_value = field_value.decode()
+                elif fields[i]['type'] in [Mssql.FieldType.FIELD_TYPE_TEXT.value]:
+                    textptr_length = pkt[idx]
+                    idx += 1 + textptr_length + 8
+                    field_length = int.from_bytes(pkt[idx:idx+4], "little")
+                    field_value = pkt[idx+4:idx+4+field_length]
+                    field_value = field_value.decode('utf-8')
+                    idx += 4
 
+                elif fields[i]['type'] in [Mssql.FieldType.FIELD_TYPE_NTEXT.value]:
+                    textptr_length = pkt[idx]
+                    idx += 1 + textptr_length + 8
+                    field_length = int.from_bytes(pkt[idx:idx+4], "little")
+                    field_value = pkt[idx+4:idx+4+field_length]
+                    field_value = field_value.decode('utf-16')
                     idx += 4
 
                 elif fields[i]['type'] in [Mssql.FieldType.FIELD_TYPE_BIGBINARY.value,
