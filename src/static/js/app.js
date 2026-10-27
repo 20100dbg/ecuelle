@@ -64,7 +64,7 @@ createApp({
 
         if (msg.query) {
           prettyQuery = window.highlight(msg.query, { html: true });
-          let q = {'cmd': msg.query, 'cmdHighlight': prettyQuery, 'result': ''}
+          let q = {'cmd': msg.query, 'cmdHighlight': prettyQuery, 'result': '', 'date': new Date(msg.timestamp * 1000).toLocaleString()}
           this._queries.push(q)
         }
 

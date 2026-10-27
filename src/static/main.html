@@ -50,6 +50,9 @@
 
                 <template v-for="query in queries" :key="query.id">
                     <tr>
+                        <td width="180px">
+                            {{query.date}}
+                        </td>
                         <td>
                             <code v-html="query.cmdHighlight"></code>
                             <p class="error" v-if="query.error">{{query.error}}</p>
