@@ -78,9 +78,9 @@ Run fixtures before testing SQL queries
 SQL_SCRIPTS_DIR=./tests/fixtures/<DBMS> docker compose run --name ecuelle-test --rm test
 ```
 
-Start a shell into test environment. This gives access to every DBMS clients, test scripts and fixtures.
+Start a shell into test environment. This gives access to every DBMS clients, test scripts and fixtures
 ```
-docker compose run bash --name ecuelle-test --rm test bash
+docker compose run --name ecuelle-test --rm test bash
 ```
 
 ### Dependancies

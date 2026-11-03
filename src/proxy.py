@@ -63,22 +63,26 @@ class Proxy:
         t.start()
 
     def send_message(self, res):
+        if res.connection:
+            logger.debug(f"emit {res.connection}")
+            socketio.emit('connection', {'timestamp': time.time(), 'dbms': self.dbms, 'connection': res.connection})
+
         if res.query:
             query = res.query
             pretty_query = Utils.clean_query(query)
-            socketio.emit('msg', {'timestamp': time.time(), 'dbms': self.dbms, 'query': query, 'pretty_query': pretty_query})
+            socketio.emit('query', {'timestamp': time.time(), 'query': query, 'pretty_query': pretty_query})
 
         if res.parameters:
-            socketio.emit('msg', {'timestamp': time.time(), 'dbms': self.dbms, 'parameters': res.parameters})
+            socketio.emit('parameters', {'timestamp': time.time(), 'parameters': res.parameters})
 
-        if res.connection:
-            socketio.emit('msg', {'timestamp': time.time(), 'dbms': self.dbms, 'connection': res.connection})
+        if res.cols:
+            socketio.emit('results', {'timestamp': time.time(), 'result': {'cols': res.cols, 'rows': res.rows, 'nb_rows': res.nb_rows}})
 
-        if res.error or res.cols:
-            socketio.emit('msg', {'timestamp': time.time(), 'dbms': self.dbms, 'error': res.error, 'result': {'cols': res.cols, 'rows': res.rows, 'nb_rows': res.nb_rows}})
+        if res.error:
+            socketio.emit('error', {'timestamp': time.time(), 'error': res.error})
 
         if res.parse_error:
-            socketio.emit('msg', {'timestamp': time.time(), 'dbms': self.dbms, 'parse_error': res.parse_error})
+            socketio.emit('parse_error', {'timestamp': time.time(), 'parse_error': res.parse_error})
 
 
 
@@ -105,7 +109,7 @@ class Proxy:
             if self.conn_server:
                 self.conn_server.send(data)
 
-        socketio.emit('msg', {'status': {'client': 'disconnected'}})
+        socketio.emit('status', {'client': 'disconnected'})
         self.conn_client.close()
 
 
@@ -117,7 +121,7 @@ class Proxy:
             s.connect((server_host, server_port))
             self.conn_server = s
 
-            socketio.emit('msg', {'status': {'server': 'connected'}})
+            socketio.emit('status', {'server': 'connected'})
 
             while True:
                 data = s.recv(65535)
@@ -140,7 +144,7 @@ class Proxy:
                 if self.conn_client:
                     self.conn_client.send(data)
 
-            socketio.emit('msg', {'status': {'server': 'disconnected'}})
+            socketio.emit('status', {'server': 'disconnected'})
 
 
 
@@ -158,7 +162,7 @@ def main_loop(dbms, server_host, server_port, listening_port):
         client, client_address = server.accept()
 
         logger.info(f"Client connected: {client_address}")
-        socketio.emit('msg', {'status': {'client': 'connected'}})
+        socketio.emit('status', {'client': 'connected'})
 
         Proxy(dbms, client, server_host, server_port)
 

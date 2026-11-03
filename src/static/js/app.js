@@ -41,43 +41,38 @@ createApp({
       socket.on("connect", () => { });
       socket.on("disconnect", () => { });
 
-      socket.on("msg", (msg) => {
+      socket.on("status", (msg) => {
+        if (msg.client) this.clientState = msg.client;
+        if (msg.server) this.serverState = msg.server;
+      });
 
-        if (msg.status) {
-          if (msg.status.client) this.clientState = msg.status.client;
-          if (msg.status.server) this.serverState = msg.status.server;
-        }
+      socket.on("connection", (msg) => {
+        if (msg.connection.username) this.dbUsername = msg.connection.username;
+        if (msg.connection.schema) this.dbName = msg.connection.schema;
+        if (msg.connection.db_version) this.dbVersion = msg.connection.db_version;
+        if (msg.dbms) this.dbms = msg.dbms;
+      });
 
-        if (msg.connection) {
-          //update current object with new value(s)
-          this.connection = Object.assign(this.connection, msg.connection);
-
-          //keep first value, only add new properties
-          this.connection = Object.assign(msg.connection, this.connection);
-
-          if (this.connection.username) this.dbUsername = this.connection.username;
-          if (this.connection.schema) this.dbName = this.connection.schema;
-          if (this.connection.db_version) this.dbVersion = this.connection.db_version;
-          if (msg.dbms) this.dbms = msg.dbms;
-
-        }
-
-        if (msg.query) {
-          prettyQuery = window.highlight(msg.query, { html: true });
-          let q = {'cmd': msg.query, 'cmdHighlight': prettyQuery, 'result': '', 'date': new Date(msg.timestamp * 1000).toLocaleString()}
-          this._queries.push(q)
-        }
-
-        if (msg.parse_error) {
-          this._queries[this._queries.length-1]['parse_error'] = msg.parse_error;
-        }
-
-        if (msg.result) {
-          this._queries[this._queries.length-1]['result'] = msg.result;
-          this._queries[this._queries.length-1]['error'] = msg.error;
-        }
-
+      socket.on("query", (msg) => {
+        prettyQuery = window.highlight(msg.query, { html: true });
+        let q = {'cmd': msg.query, 'cmdHighlight': prettyQuery, 'result': '', 'date': new Date(msg.timestamp * 1000).toLocaleString()};
+        this._queries.push(q);
         this.queriesCount = this._queries.length;
+      });
+
+      socket.on("parameters", (msg) => {
+      });
+
+      socket.on("results", (msg) => {
+        this._queries[this._queries.length-1]['result'] = msg.result;
+      });
+
+      socket.on("error", (msg) => {
+        this._queries[this._queries.length-1]['error'] = msg.error;
+      });
+
+      socket.on("parse_error", (msg) => {
+        this._queries[this._queries.length-1]['parse_error'] = msg.parse_error;
       });
     },
 

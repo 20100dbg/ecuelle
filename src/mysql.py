@@ -154,6 +154,8 @@ class Mysql:
         idx = payload.find(0)
         db_version = payload[1:idx].decode()
 
+        logger.debug(f"db_version {db_version}")
+
         if version == 10:
             salt1 = payload[idx+5:idx+13]
             server_capabilities = int.from_bytes(payload[idx+14:idx+16], "little")
