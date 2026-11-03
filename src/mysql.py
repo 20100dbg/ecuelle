@@ -156,21 +156,17 @@ class Mysql:
 
         if version == 10:
             salt1 = payload[idx+5:idx+13]
-            cap1 = payload[idx+14:idx+16]
-            cap2 = payload[idx+19:idx+21]
+            server_capabilities = int.from_bytes(payload[idx+14:idx+16], "little")
+            extended_server_capabilities = int.from_bytes(payload[idx+19:idx+21], "little")
             auth_plugin_data_len = 0
-            self.server_capabilities = int.from_bytes(cap1+cap2, "little")
 
-            #if self.check_capability(self.server_capabilities, Mysql.Capability.CLIENT_PLUGIN_AUTH.value):
-            #    auth_plugin_data_len = payload[idx+21]
-            
+            if self.has_capability(server_capabilities, Mysql.Capability.SWITCH_TO_SSL_AFTER_HANDSHAKE):
+                logger.debug("Server is SSL ready")
+
             salt_length = max(13, auth_plugin_data_len-8)-1
             salt2 = payload[idx+32:idx+32+salt_length]
             salt = salt1 + salt2
             
-            #if self.check_capability(self.server_capabilities, Mysql.Capability.CLIENT_PLUGIN_AUTH.value):
-            #    auth_plugin_name = payload[idx+33+salt_length:-1]
-
 
         elif version == 9:
             salt = payload[idx+5:]
@@ -181,8 +177,11 @@ class Mysql:
     def parse_HANDSHAKE_RESPONSE(self, payload):
         logger.debug("inside parse_HANDSHAKE_RESPONSE")
 
-        self.client_capabilities = int.from_bytes(payload[0:2], "little")
-        self.client_capabilities2 = int.from_bytes(payload[2:4], "little")
+        client_capabilities = int.from_bytes(payload[0:2], "little")
+        extended_client_capabilities = int.from_bytes(payload[2:4], "little")
+
+        if self.has_capability(client_capabilities, Mysql.Capability.SWITCH_TO_SSL_AFTER_HANDSHAKE):
+            logger.debug("Client is SSL ready")
 
         #23 reserved
 
@@ -308,8 +307,8 @@ class Mysql:
         self.result.nb_rows = len(result)
 
 
-    def check_capability(self, capabilities, val):
-        return (capabilities & val) == val
+    def has_capability(self, capabilities, cap):
+        return (capabilities & cap.value) == cap.value
 
 
     def read_length_encoded_integer(self, x):
@@ -324,38 +323,40 @@ class Mysql:
 
     
     class Capability(Enum):
-        CLIENT_LONG_PASSWORD = 1
-        CLIENT_FOUND_ROWS = 2
-        CLIENT_LONG_FLAG = 1 << 2
-        CLIENT_CONNECT_WITH_DB = 1 << 3
-        CLIENT_NO_SCHEMA =  1 << 4
-        CLIENT_COMPRESS = 1 << 5
-        CLIENT_ODBC = 1 << 6
-        CLIENT_LOCAL_FILES = 1 << 7
-        CLIENT_IGNORE_SPACE = 1 << 8
-        CLIENT_PROTOCOL_41 = 1 << 9
-        CLIENT_INTERACTIVE = 1 << 10
-        CLIENT_SSL = 1 << 11
-        CLIENT_IGNORE_SIGPIPE = 1 << 12
-        CLIENT_TRANSACTIONS = 1 << 13
-        CLIENT_RESERVED = 1 << 14
-        CLIENT_RESERVED2 =  1 << 15
-        CLIENT_MULTI_STATEMENTS = 1 << 16
-        CLIENT_MULTI_RESULTS = 1 << 17
-        CLIENT_PS_MULTI_RESULTS = 1 << 18
-        CLIENT_PLUGIN_AUTH = 1 << 19
-        CLIENT_CONNECT_ATTRS = 1 << 20
-        CLIENT_PLUGIN_AUTH_LENENC_CLIENT_DATA = 1 << 21
-        CLIENT_CAN_HANDLE_EXPIRED_PASSWORDS = 1 << 22
-        CLIENT_SESSION_TRACK = 1 << 23
-        CLIENT_DEPRECATE_EOF = 1 << 24
-        CLIENT_OPTIONAL_RESULTSET_METADATA = 1 << 25
-        CLIENT_ZSTD_COMPRESSION_ALGORITHM = 1 << 26
-        CLIENT_QUERY_ATTRIBUTES = 1 << 27
-        MULTI_FACTOR_AUTHENTICATION = 1 << 28
-        CLIENT_CAPABILITY_EXTENSION = 1 << 29
-        CLIENT_SSL_VERIFY_SERVER_CERT = 1 << 30
-        CLIENT_REMEMBER_OPTIONS = 1 << 31
+        LONG_PASSWORD = 1
+        FOUND_ROWS = 1 << 1
+        LONG_COLUMNS_FLAG = 1 << 2
+        CONNECT_WITH_DATABASE = 1 << 3
+        DONT_ALLOW_DATABASE_TABLE_COLUMN =  1 << 4
+        CAN_USE_COMPRESSION_PROTOCOL = 1 << 5
+        ODBC_CLIENT = 1 << 6
+        CAN_USE_LOAD_DATA_LOCAL = 1 << 7
+        IGNORE_SPACES_BEFORE_PARENTHESIS = 1 << 8
+        SPEAKS_4_1_PROTOCOL = 1 << 9
+        INTERACTIVE_CLIENT = 1 << 10
+        SWITCH_TO_SSL_AFTER_HANDSHAKE = 1 << 11
+        IGNORE_SIGPIPES = 1 << 12
+        KNOWS_ABOUT_TRANSACTIONS = 1 << 13
+        SPEAKS_4_1_PROTOCOL_OLD_FLAG = 1 << 14
+        CAN_DO_4_1_AUTHENTICATION =  1 << 15
+        
+    class ExtendedCapability(Enum):
+        MULTIPLE_STATEMENTS = 1
+        MULTIPLE_RESULTS = 1 << 1
+        PS_MULTIPLE_RESULTS = 1 << 2
+        PLUGIN_AUTH = 1 << 3
+        CONNECT_ATTRS = 1 << 4
+        PLUGIN_AUTH_LENENC_CLIENT_DATA = 1 << 5
+        CLIENT_CAN_HANDLE_EXPIRED_PASSWORDS = 1 << 6
+        SESSION_VARIABLE_TRACKING = 1 << 7
+        DEPRECATE_EOF = 1 << 8
+        CLIENT_CAN_HANDLE_OPTIONAL_RESULTSET_METADATA = 1 << 9
+        ZSTD_COMPRESSION_ALGORITHM = 1 << 10
+        QUERY_ATTRIBUTES = 1 << 11
+        MULTIFACTOR_AUTHENTICATION = 1 << 12
+        CAPABILITY_EXTENSION = 1 << 13
+        CLIENT_VERIFIES_SERVER_TLS_CERTIFICATES = 1 << 14
+        UNUSED = 1 << 15
 
     class FieldType(Enum):
         FIELD_TYPE_TINY = 1
