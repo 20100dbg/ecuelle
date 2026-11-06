@@ -37,14 +37,13 @@ def main():
     return response
 
 
-class Packet:
+class SQL:
     @staticmethod
-    def parse(dbms, data, connection_state):
-        if dbms in [DBMS.MYSQL, DBMS.MARIADB] : return Mysql(data, connection_state)
-        elif dbms == DBMS.POSTGRES : return Postgres(data, connection_state)
-        elif dbms == DBMS.MSSQL : return Mssql(data, connection_state)
+    def init(dbms):
+        if dbms in [DBMS.MYSQL, DBMS.MARIADB] : return Mysql()
+        elif dbms == DBMS.POSTGRES : return Postgres()
+        elif dbms == DBMS.MSSQL : return Mssql()
         else : return None
-
 
 class Proxy:
 
@@ -93,8 +92,11 @@ class Proxy:
             if not data:
                 break
 
+            p = SQL.init(self.dbms)
+
             try:
-                p = Packet.parse(self.dbms, data, self.connection_state)
+                packet_type, payload_length = p.parse_header(data, self.connection_state)
+                p.parse_packet(data, packet_type)
                 res = p.result
             except Exception as e:
                 logger.debug(f"listen_client Exception : {e}")
@@ -128,8 +130,11 @@ class Proxy:
                 if not data:
                     break
 
+                p = SQL.init(self.dbms)
+
                 try:
-                    p = Packet.parse(self.dbms, data, self.connection_state)
+                    packet_type, payload_length = p.parse_header(data, self.connection_state)
+                    p.parse_packet(data, packet_type)
                     res = p.result
                 except Exception as e:
                     logger.debug(f"listen_server Exception : {e}")

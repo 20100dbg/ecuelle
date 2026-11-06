@@ -9,24 +9,25 @@ logger = logging.getLogger(__name__)
 
 class Mssql:
 
-    def __init__(self, pkt, connection_state):
+    def __init__(self):
         self.result = Result()
-        self.packet_type = None
-        self.connection_state = connection_state
+        self.connection_state = ConnectionState.WAIT_HANDSHAKE
 
-        self.parse_header(pkt, connection_state)
-        self.parse_packet(pkt)
 
     def parse_header(self, pkt, connection_state):
-        self.packet_type = self.get_packet_type(pkt)
-        #packet_length = int.from_bytes(pkt[2:4], "big")
+        packet_type = self.get_packet_type(pkt)
+        payload_length = int.from_bytes(pkt[2:4], "big")
+        self.connection_state = connection_state
 
-    def parse_packet(self, pkt):
-        if self.packet_type == Mssql.PacketType.PACKET_BATCH:
+        return packet_type, payload_length
+
+
+    def parse_packet(self, pkt, packet_type):
+        if packet_type == Mssql.PacketType.PACKET_BATCH:
             self.connection_state = ConnectionState.WAIT_QUERY_RESPONSE
             self.parse_BATCH(pkt)
 
-        elif self.packet_type == Mssql.PacketType.PACKET_RESPONSE:
+        elif packet_type == Mssql.PacketType.PACKET_RESPONSE:
 
             if self.connection_state in [ConnectionState.WAIT_HANDSHAKE_END, ConnectionState.WAIT_QUERY_RESPONSE, ConnectionState.READY]:
                 #self.connection_state = ConnectionState.READY
@@ -36,7 +37,7 @@ class Mssql:
                 self.connection_state = ConnectionState.WAIT_HANDSHAKE_END
 
 
-        elif self.packet_type == Mssql.PacketType.PACKET_PRELOGIN and self.connection_state != ConnectionState.WAIT_HANDSHAKE_END:
+        elif packet_type == Mssql.PacketType.PACKET_PRELOGIN and self.connection_state != ConnectionState.WAIT_HANDSHAKE_END:
             self.connection_state = ConnectionState.WAIT_HANDSHAKE_RESPONSE
 
 
@@ -92,6 +93,7 @@ class Mssql:
                 server_version = pkt[idx+6+(server_name_length*2):idx+6+(server_name_length*2)+4]
                 server_version = f"{server_version[0]}.{server_version[1]}.{int.from_bytes(server_version[2:4], 'big')}"
 
+                server_version = Utils.translate_mssql_version(server_version)
                 self.result.connection['db_version'] = server_version
 
             elif token_type == 0xae: #FeatureExtAct

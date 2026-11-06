@@ -88,3 +88,24 @@ class Utils:
 
             ret += f"{to_hex(pkt_slice)}{empty_placeholder}  {print_ascii(pkt_slice)}\n"
         return ret + "\n"
+
+    @staticmethod
+    def translate_mssql_version(server_version):
+        versions = {"8": "2000",
+                    "9": "2005",
+                    "10": "2008",
+                    "11": "2012",
+                    "12": "2014",
+                    "13": "2016",
+                    "14": "2017",
+                    "15": "2019",
+                    "16": "2022",
+                    }
+        tmp = server_version.split('.')
+        major = tmp[0]
+
+        if major in versions:
+            return versions[major]
+
+        return major
+

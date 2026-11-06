@@ -7,17 +7,14 @@ logger = logging.getLogger(__name__)
 
 class Postgres:
 
-    def __init__(self, pkt, connection_state):
+    def __init__(self):
         self.result = Result()
-        self.packet_type = None
-        self.connection_state = connection_state
+        self.connection_state = ConnectionState.WAIT_HANDSHAKE
 
-        self.parse_header(pkt)
-        self.parse_packet(pkt)
-
-    def parse_header(self, pkt):
-        self.packet_type = self.get_packet_type(pkt)
-        self.payload_length = int.from_bytes(pkt[1:5], "big")
+    def parse_header(self, pkt, connection_state):
+        packet_type = self.get_packet_type(pkt)
+        payload_length = int.from_bytes(pkt[1:5], "big")
+        return packet_type, payload_length
 
     def get_packet_type(self, pkt):
 
@@ -41,9 +38,9 @@ class Postgres:
 
         return Postgres.PacketType.PACKET_UNKNOWN
 
-    def parse_packet(self, pkt):
+    def parse_packet(self, pkt, packet_type):
 
-        if self.packet_type == Postgres.PacketType.PACKET_QUERY:
+        if packet_type == Postgres.PacketType.PACKET_QUERY:
             query = pkt[5:-1].decode()
 
             if query in ["BEGIN", "ROLLBACK", "COMMIT"]:
@@ -51,16 +48,16 @@ class Postgres:
 
             self.result.query = query
 
-        elif self.packet_type == Postgres.PacketType.PACKET_ROW_DESCRIPTION:
+        elif packet_type == Postgres.PacketType.PACKET_ROW_DESCRIPTION:
             self.parse_ROW_DESCRIPTION(pkt)
 
-        elif self.packet_type == Postgres.PacketType.PACKET_ERROR:
+        elif packet_type == Postgres.PacketType.PACKET_ERROR:
             self.parse_ERROR(pkt)
 
-        elif self.packet_type == Postgres.PacketType.PACKET_STARTUP:
+        elif packet_type == Postgres.PacketType.PACKET_STARTUP:
             self.parse_STARTUP(pkt)
 
-        elif self.packet_type == Postgres.PacketType.PACKET_AUTH_REQUEST:
+        elif packet_type == Postgres.PacketType.PACKET_AUTH_REQUEST:
             self.parse_AUTH_REQUEST(pkt)
 
 

@@ -7,14 +7,9 @@ logger = logging.getLogger(__name__)
 
 class Mysql:
 
-    def __init__(self, pkt, connection_state):
+    def __init__(self):
         self.result = Result()
-        self.packet_type = None
-        self.connection_state = connection_state
-
-        self.parse_header(pkt, connection_state)
-        self.parse_packet(self.payload)
-
+        self.connection_state = ConnectionState.WAIT_HANDSHAKE
 
     #@staticmethod
     def replace_query(self, new_query):
@@ -25,52 +20,54 @@ class Mysql:
 
 
     def parse_header(self, pkt, connection_state):
-        self.payload_length = int.from_bytes(pkt[0:3], "little")
-        self.packet_number = pkt[3]
-        self.payload = pkt[4:]
-
-        if len(self.payload) != self.payload_length:
-            logger.debug(f"len(self.payload) = {len(self.payload)}")
-            logger.debug(f"self.payload_length = {self.payload_length}")
-            #raise ValueError("Invalid payload length")
-
-        self.packet_type = self.get_packet_type(self.packet_number, self.payload_length, self.payload, connection_state)
-
-    def parse_packet(self, payload):
+        payload_length = int.from_bytes(pkt[0:3], "little")
+        packet_number = pkt[3]
+        payload = pkt[4:]
 
         # packet is > 16mb
-        if self.payload_length == 16777215:
+        if payload_length == 16777215:
             pass
 
-        if self.packet_type == Mysql.PacketType.PACKET_OK:
+        logger.debug(f"len(pkt) = {len(pkt)}")
+        logger.debug(f"len(payload) = {len(payload)}")
+        logger.debug(f"payload_length = {payload_length}")
+
+        packet_type = self.get_packet_type(packet_number, payload_length, payload, connection_state)
+        return packet_type, payload_length
+
+
+    def parse_packet(self, pkt, packet_type):
+        payload = pkt[4:]
+
+        if packet_type == Mysql.PacketType.PACKET_OK:
             self.parse_OK(payload)
 
-        elif self.packet_type == Mysql.PacketType.PACKET_ERR:
+        elif packet_type == Mysql.PacketType.PACKET_ERR:
             self.parse_ERR(payload)
 
-        elif self.packet_type == Mysql.PacketType.PACKET_PREPARE_STATEMENT:
+        elif packet_type == Mysql.PacketType.PACKET_PREPARE_STATEMENT:
             query = payload[1:].decode()
             self.result.query = query
 
-        elif self.packet_type == Mysql.PacketType.PACKET_EXECUTE_STATEMENT:
+        elif packet_type == Mysql.PacketType.PACKET_EXECUTE_STATEMENT:
             self.parse_EXECUTE_STATEMENT(payload)
 
-        elif self.packet_type == Mysql.PacketType.PACKET_QUERY:
+        elif packet_type == Mysql.PacketType.PACKET_QUERY:
             query = payload[1:].decode()
             self.result.query = query
 
-        elif self.packet_type == Mysql.PacketType.PACKET_HANDSHAKE:
+        elif packet_type == Mysql.PacketType.PACKET_HANDSHAKE:
             self.connection_state = ConnectionState.WAIT_HANDSHAKE_RESPONSE
             self.parse_HANDSHAKE(payload)
     
-        elif self.packet_type == Mysql.PacketType.PACKET_HANDSHAKE_RESPONSE:
+        elif packet_type == Mysql.PacketType.PACKET_HANDSHAKE_RESPONSE:
             self.connection_state = ConnectionState.READY
             self.parse_HANDSHAKE_RESPONSE(payload)
 
-        elif self.packet_type == Mysql.PacketType.PACKET_TABULAR_RESPONSE:
+        elif packet_type == Mysql.PacketType.PACKET_TABULAR_RESPONSE:
             self.parse_TABULAR_RESPONSE(payload)
 
-        elif self.packet_type == Mysql.PacketType.PACKET_USE:
+        elif packet_type == Mysql.PacketType.PACKET_USE:
             self.parse_USE(payload)
 
 

@@ -2,11 +2,11 @@ Proxy
 - read payload_length, use with tcp.read(x + payload_length)
 - MSSQL: support SQL_VARIANT ?
 - TLS support
+- complete connection state support
 
 Frontend
 - fix/enhance Status (active, closed, etc)
 - add columns :
--- datetime
 -- connection (or group by connection)
 - queries editing
 -- replace parameters placeholder with values
