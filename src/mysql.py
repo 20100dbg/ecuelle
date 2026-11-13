@@ -1,4 +1,5 @@
 import logging
+import struct
 from enum import Enum
 
 from common import *
@@ -23,16 +24,19 @@ class Mysql:
         payload_length = int.from_bytes(pkt[0:3], "little")
         packet_number = pkt[3]
         payload = pkt[4:]
+        self.connection_state = connection_state
 
         # packet is > 16mb
         if payload_length == 16777215:
             pass
 
+        """
         logger.debug(f"len(pkt) = {len(pkt)}")
         logger.debug(f"len(payload) = {len(payload)}")
         logger.debug(f"payload_length = {payload_length}")
-
+        """
         packet_type = self.get_packet_type(packet_number, payload_length, payload, connection_state)
+        logger.debug(f"packet_type = {packet_type}")
         return packet_type, payload_length
 
 
@@ -50,9 +54,11 @@ class Mysql:
             self.result.query = query
 
         elif packet_type == Mysql.PacketType.PACKET_EXECUTE_STATEMENT:
+            self.connection_state = ConnectionState.GOT_PREPARE_STATEMENT
             self.parse_EXECUTE_STATEMENT(payload)
 
         elif packet_type == Mysql.PacketType.PACKET_QUERY:
+            self.connection_state = ConnectionState.GOT_QUERY
             query = payload[1:].decode()
             self.result.query = query
 
@@ -87,6 +93,12 @@ class Mysql:
             return Mysql.PacketType.PACKET_HANDSHAKE_RESPONSE
         elif packet_number == 2 and payload_length == 2:
             return Mysql.PacketType.PACKET_CACHING_SHA2
+        elif packet_number == 3 and payload_length == 1 and payload[0] == 2:
+            return Mysql.PacketType.PACKET_REQUEST_PUBLIC_KEY
+        elif packet_number == 4 and payload[1:26] == b"-----BEGIN PUBLIC KEY-----":
+            return Mysql.PacketType.PACKET_PUBLIC_KEY
+        elif packet_number == 5 and payload_length == 256:
+            return Mysql.PacketType.PACKET_CACHING_SHA2_RESPONSE
         elif packet_number == 0 and payload[0] == 0x03:
             return Mysql.PacketType.PACKET_QUERY
         elif packet_number == 0 and payload[0] == 0x16:
@@ -127,6 +139,7 @@ class Mysql:
                 idx += 1 + parameter_length
 
             self.result.parameters = parameters
+            logger.debug(f"parameters {parameters}")
 
     def parse_OK(self, payload):
         #response_code = payload[0]
@@ -208,102 +221,243 @@ class Mysql:
     def parse_SHOW(self, payload):
         logger.debug(f"show: {payload[1:-1]}")
 
+
+
     def parse_TABULAR_RESPONSE(self, payload):
-        
-        # Column count
-        nb_fields = payload[0]
-        idx = 1
+
+        # Column count (length-encoded integer)
+        nb_fields, idx = self.read_lenenc_int(payload, 0)
+
+        # Decode column metadata
+        fields, idx = self.parse_field_metadata(payload, idx, nb_fields)
         result = []
-        fields = []
 
-        # Field packet
-        for _ in range(nb_fields):
-
-            packet_length = int.from_bytes(payload[idx:idx+3], "little")
-            #packet_number = payload[idx + 3]
-
-            idx += 4
-            fields_name = ['catalog', 'database', 'table', 'original_table', 'name', 'original_name']
-            field_name = field_original_name = ''
-
-            for fn in fields_name:
-                field_length = payload[idx]
-                field_value = payload[idx+1:idx+1+field_length]
-                
-                if fn == 'name':
-                    field_name = field_value.decode()
-
-                elif fn == 'original_name':
-                    field_original_name = field_value.decode()
-
-                idx += 1+field_length
-
-            #charset = payload[idx+1]
-            field_length = int.from_bytes(payload[idx+3:idx+7], "little")
-            field_type = payload[idx+7]
-
-            if not field_name: field_name = "(empty string)"
-            if not field_original_name: field_original_name = "(empty string)"
-
-            logger.debug(f"field: {field_name} {field_type}")
-            fields.append({'name': field_name, 'original_name': field_original_name, 'type': field_type})
-
-            #skip 00 00
-            idx += 11 + 2
-
-        #End field packets
-
-        #row packets
-        got_intermediate_eof = False
-
-        while True:
-
-            row = []
+        # Decode row packets
+        while idx + 4 <= len(payload):
 
             packet_length = int.from_bytes(payload[idx:idx+3], "little")
-            #packet_number = payload[idx+3]
-            response_code = payload[idx+4]
-            idx += 4
+            packet_end = idx + 4 + packet_length
 
-            if packet_length < 8 and response_code == 0xfe:
-                if not got_intermediate_eof and (idx + packet_length) < len(payload):
-                    got_intermediate_eof = True
-                    idx += 5
-                    continue
-                else:
-                    break
+            packet_data = payload[idx+4:packet_end]
+            idx = packet_end
+
+            if not packet_data:
+                continue
+
+            response_code = packet_data[0]
+
+            # EOF packet
+            if response_code == 0xfe and packet_length < 9:
+                continue
+
+            # Decode row according to protocol
+
+            if self.connection_state == ConnectionState.GOT_QUERY:
+                row, _ = self.decode_text_row(packet_data, 0, fields)
+
+            elif self.connection_state == ConnectionState.GOT_PREPARE_STATEMENT:
+                if response_code != 0x00:
+                    raise ValueError(f"Invalid binary row header: {response_code:#x}")
+
+                row, _ = self.decode_binary_row(packet_data, 0, fields)
 
             else:
+                raise ValueError(f"Unknown row format: {row_format}")
 
-                if packet_length == 1:
-                    row.append("")
-                    idx += 1
-
-                else:
-                    for i in range(len(fields)):
-                        field_length = payload[idx]
-
-                        if field_length == 0xfb:
-                            val = "NULL"
-                            field_length = 0
-
-                        elif field_length > 0:
-                            val = payload[idx+1:idx+1+field_length]
-                            val = val.decode()
-
-                        else:
-                            val = "(empty string)"
-
-
-                        logger.debug(f"field {fields[i]['name']} = {val}")
-                        row.append(val)
-                        idx += 1 + field_length
-
-                    result.append(row)
+            result.append(row)
 
         self.result.cols = fields
         self.result.rows = result
         self.result.nb_rows = len(result)
+
+
+    def decode_binary_value(self, payload, idx, field):
+        field_type = field["type"]
+        unsigned = bool(field["flags"] & 0x20)
+
+        # Integer types
+        integer_types = {
+            1: 1,  # TINY
+            2: 2,  # SHORT
+            3: 4,  # LONG
+            8: 8,  # LONGLONG
+            9: 4,  # INT24 (4 bytes in binary protocol)
+            13: 2, # YEAR
+        }
+
+        if field_type in integer_types:
+            size = integer_types[field_type]
+            value = int.from_bytes(payload[idx:idx + size],"little",signed=False)
+            return value, idx + size
+
+        # Floating-point types
+        if field_type == 4:  # FLOAT
+            return struct.unpack_from("<f", payload, idx)[0], idx + 4
+
+        if field_type == 5:  # DOUBLE
+            return struct.unpack_from("<d", payload, idx)[0], idx + 8
+
+        # String, blob, decimal and bit types
+        length_encoded_types = {
+            15,     # VARCHAR
+            16,     # BIT
+            246,    # NEWDECIMAL
+            249,    # TINY_BLOB
+            250,    # MEDIUM_BLOB
+            251,    # LONG_BLOB
+            252,    # BLOB
+            253,    # VAR_STRING
+            254,    # STRING
+            255,    # GEOMETRY
+            247,    # ENUM
+            248,    # SET
+            245,    # JSON
+        }
+
+        if field_type in length_encoded_types:
+            value, idx = self.read_lenenc_string(payload, idx)
+            return value.decode(), idx
+
+        # Temporal types: length-prefixed binary representation
+        temporal_types = {
+            7,   # TIMESTAMP
+            10,  # DATE
+            11,  # TIME
+            12,  # DATETIME
+        }
+
+        if field_type in temporal_types:
+            length = payload[idx]
+            idx += 1
+
+            value = payload[idx:idx + length]
+            return value, idx + length
+
+        if field_type == 6:  # NULL
+            return None, idx
+
+        raise NotImplementedError(
+            f"Unsupported MySQL field type: {field_type}"
+        )
+
+
+    def decode_binary_row(self, payload, idx, fields):
+        # Skip binary row header (0x00)
+        idx += 1
+
+        bitmap_length = (len(fields) + 7 + 2) // 8
+
+        null_bitmap = payload[idx:idx + bitmap_length]
+        idx += bitmap_length
+
+        row = []
+
+        for i, field in enumerate(fields):
+
+            # Two reserved bits precede the column bits
+            bitmap_pos = i + 2
+
+            if null_bitmap[bitmap_pos // 8] & (1 << (bitmap_pos % 8)):
+                row.append(None)
+                continue
+
+            value, idx = self.decode_binary_value(
+                payload, idx, field
+            )
+
+            row.append(value)
+
+        return row, idx
+
+
+
+    def decode_text_row(self, payload, idx, fields):
+        row = []
+
+        for field in fields:
+            value, idx = self.read_lenenc_string(payload, idx)
+
+            if value is None:
+                row.append(None)
+            else:
+                row.append(value.decode("utf-8", errors="replace"))
+
+        return row, idx
+
+
+    def read_lenenc_int(self, payload, idx):
+        first = payload[idx]
+        idx += 1
+
+        if first < 0xfb:
+            return first, idx
+
+        if first == 0xfb:
+            return None, idx
+
+        if first == 0xfc:
+            return int.from_bytes(payload[idx:idx+2], "little"), idx + 2
+
+        if first == 0xfd:
+            return int.from_bytes(payload[idx:idx+3], "little"), idx + 3
+
+        if first == 0xfe:
+            return int.from_bytes(payload[idx:idx+8], "little"), idx + 8
+
+        raise ValueError(f"Invalid length-encoded integer: {first}")
+
+
+    def read_lenenc_string(self, payload, idx):
+        length, idx = self.read_lenenc_int(payload, idx)
+
+        if length is None:
+            return None, idx
+
+        value = payload[idx:idx + length]
+        return value, idx + length
+
+
+    def parse_field_metadata(self, payload, idx, nb_fields):
+        fields = []
+
+        for _ in range(nb_fields):
+            packet_length = int.from_bytes(payload[idx:idx+3], "little")
+            idx += 4  # Packet length + sequence number
+
+            names = ["catalog", "database", "table", "original_table", "name", "original_name"]
+            field = {}
+
+            for name in names:
+                value, idx = self.read_lenenc_string(payload, idx)
+                field[name] = value.decode("utf-8", errors="replace") if value else ""
+
+            # Fixed-length metadata section
+            fixed_length = payload[idx]
+            idx += 1
+
+            if fixed_length < 0x0c:
+                raise ValueError("Invalid column metadata section")
+
+            charset = int.from_bytes(payload[idx:idx+2], "little")
+            column_length = int.from_bytes(payload[idx+2:idx+6], "little")
+            field_type = payload[idx+6]
+            flags = int.from_bytes(payload[idx+7:idx+9], "little")
+            decimals = payload[idx+9]
+
+            idx += fixed_length
+
+            field["name"] = field["name"] or "(empty string)"
+            field["original_name"] = field["original_name"] or "(empty string)"
+            field["type"] = field_type
+            field["charset"] = charset
+            field["length"] = column_length
+            field["flags"] = flags
+            field["decimals"] = decimals
+
+            fields.append(field)
+            logger.debug(f"Field: {field['name']} type={field_type}")
+
+        return fields, idx
 
 
     def has_capability(self, capabilities, cap):
@@ -371,7 +525,7 @@ class Mysql:
         FIELD_TYPE_TIME = 11
         FIELD_TYPE_DATETIME = 12
         FIELD_TYPE_YEAR = 13
-        FIELD_TYPE_UNKNOWN = 245
+        FIELD_TYPE_JSON = 245
         FIELD_TYPE_NEWDECIMAL = 246
         FIELD_TYPE_BLOB = 252
         FIELD_TYPE_VAR_STRING = 253
@@ -392,4 +546,7 @@ class Mysql:
         PACKET_QUIT = 12
         PACKET_USE = 13
         PACKET_SHOW = 14
+        PACKET_REQUEST_PUBLIC_KEY = 15
+        PACKET_PUBLIC_KEY = 16
+        PACKET_CACHING_SHA2_RESPONSE = 17
         PACKET_UNKNOWN = 0xff

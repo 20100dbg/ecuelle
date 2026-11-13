@@ -11,6 +11,8 @@ class ConnectionState(Enum):
     READY = auto()
     WAIT_QUERY = auto()
     WAIT_QUERY_RESPONSE = auto()
+    GOT_QUERY = auto()
+    GOT_PREPARE_STATEMENT = auto()
 
 class DBMS(StrEnum):
     POSTGRES = "postgres"
