@@ -15,7 +15,7 @@ logging.basicConfig(level=level, style="{", format="{asctime} - {levelname} - {m
 logger = logging.getLogger(__name__)
 
 
-def mysql_query(config, query):
+def mysql_query(config, query, parameters=None):
 
     with MySQLdb.connect(
         host=config["host"],
@@ -26,7 +26,7 @@ def mysql_query(config, query):
 
         try:
             with conn.cursor() as cur:
-                cur.execute(query)
+                cur.execute(query, parameters)
                 return cur.fetchall()
         except MySQLdb.Error as e:
             logger.debug(f"Error: {e}")
@@ -102,18 +102,24 @@ if debug:
     print(f"config {config}")
 
 queries = [
-    "SELECT * FROM users;",
-    "SELECT * FROM data;",
-    "SELECT * FROM NOT_A_TABLE;",
-    "SELECT '',0,null",
-    "SELECT * FROM users WHERE id = 9999;",
+    ["SELECT * FROM users;", []],
+    ["SELECT * FROM data;", []],
+    ["SELECT * FROM NOT_A_TABLE;", []],
+    ["SELECT '',0,null", []],
+    ["SELECT * FROM users WHERE id = 9999;", []],
+    ["SELECT id, name, password FROM users WHERE id=%s", [1]],
+    ["SELECT id, name, password FROM users WHERE id=%(id)s", {'id': 2}],
 ]
 
-for query in queries:
-    if config['dbms'] in ["mysql", "mariadb"]: res = mysql_query(config, query)
-    elif config['dbms'] == "postgres": res = postgres_query(config, query)
-    elif config['dbms'] == "mssql": res = mssql_query(config, query)
+
+for query, parameters in queries:
+    if config['dbms'] in ["mysql", "mariadb"]: res = mysql_query(config, query, parameters)
+    elif config['dbms'] == "postgres": res = postgres_query(config, query, parameters)
+    elif config['dbms'] == "mssql": res = mssql_query(config, query, parameters)
     
     #if debug:
     print(f"query {query}")
     print(f"result {res}")
+
+print("Python script done")
+print()
