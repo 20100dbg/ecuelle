@@ -60,6 +60,128 @@ class Postgres:
         elif packet_type == Postgres.PacketType.PACKET_AUTH_REQUEST:
             self.parse_AUTH_REQUEST(pkt)
 
+        elif packet_type == Postgres.PacketType.PACKET_PARSE:
+            self.parse_PARSE(pkt)
+
+        elif packet_type == Postgres.PacketType.PACKET_PARSE_COMPLETION:
+            self.parse_PARSE_COMPLETION(pkt)
+
+
+    def parse_PARSE(self, pkt):
+        payload_length = int.from_bytes(pkt[0:4], "big")
+
+        idx = 6
+        idx2 = pkt.find(0, idx)
+        query = pkt[idx:idx2].decode()
+        idx = idx2 + 1
+
+        nb_parameters = int.from_bytes(pkt[idx:idx+2], "big")
+        idx += 2
+
+        for _ in range(nb_parameters):
+            parameter_type = int.from_bytes(pkt[idx:idx+4], "big")
+            idx += 4
+
+        type = pkt[idx]
+        idx += 1
+
+        length = int.from_bytes(pkt[idx:idx+4], "big")
+        idx += 4
+
+        idx2 = pkt.find(0, idx) + 1
+        portal = pkt[idx:idx2]
+        idx = idx2
+
+        idx2 = pkt.find(0, idx) + 1
+        statement = pkt[idx:idx2]
+        idx = idx2
+
+        nb_parameter_formats = int.from_bytes(pkt[idx:idx+2], "big")
+        idx += 2
+
+        parameters_values = []
+        parameters_formats = []
+
+        for _ in range(nb_parameter_formats):
+            parameter_format = int.from_bytes(pkt[idx:idx+2], "big")
+            parameters_formats.append(parameter_format)
+            idx += 2
+
+        nb_parameter_values = int.from_bytes(pkt[idx:idx+2], "big")
+        idx += 2
+
+        for i in range(nb_parameter_values):
+            column_length = int.from_bytes(pkt[idx:idx+4], "big")
+            idx += 4
+
+            if parameters_formats[i] == 0: # text
+                parameter_value = pkt[idx:idx+column_length].decode()
+
+            elif parameters_formats[i] == 1: # binary
+                parameter_value = int.from_bytes(pkt[idx:idx+column_length], "big")
+
+            idx += column_length
+            parameters_values.append(parameter_value)
+
+
+        self.result.query = query
+        self.result.parameters = parameters_values
+
+
+    def parse_PARSE_COMPLETION(self, pkt):
+        idx = 10
+        type = pkt[idx] #0x54 == row description
+        idx += 1 + 4 # length
+
+        field_names = []
+
+        field_count = int.from_bytes(pkt[idx:idx+2], "big")
+        idx += 2
+
+        for _ in range(field_count):
+            idx2 = pkt.find(0, idx)
+            column_name = pkt[idx:idx2].decode()
+
+            idx = idx2 + 1
+            idx += 4 #oid_table
+            idx += 2 #column_index
+            oid_type = pkt[idx:idx+4]
+            idx += 4 #oid_type
+            idx += 2 #column_length
+            idx += 4 #type_modifier
+
+            format = pkt[idx:idx+2]
+            idx += 2 #format
+
+            field_names.append({'name': column_name, 'type': oid_type})
+
+        rows = []
+
+        while True:
+            type = pkt[idx] #0x44 == data row
+            row = []
+
+            if type == 0x44:
+                idx += 1 + 4 # length
+                idx += 2 # field count
+
+                for _ in range(field_count):
+                    column_length = int.from_bytes(pkt[idx:idx+4], "big")
+                    idx += 4
+                    column_value = pkt[idx:idx+column_length].decode()
+                    idx += column_length
+
+                    row.append(column_value)
+
+                rows.append(row)
+
+            else:
+                break
+
+        self.result.cols = field_names
+        self.result.rows = rows
+        self.result.nb_rows = len(rows)
+
 
     def parse_STARTUP(self, pkt):
         payload_length = int.from_bytes(pkt[0:4], "big")
@@ -180,9 +302,11 @@ class Postgres:
         PACKET_SSL_REQUEST = 0x00
         PACKET_SSL_RESPONSE = 0x01
         PACKET_STARTUP = 0x02
+        PACKET_PARSE_COMPLETION = 0x31
         PACKET_COMPLETION = 0x43
         PACKET_DATA_ROW = 0x44
         PACKET_ERROR = 0x45
+        PACKET_PARSE = 0x50
         PACKET_QUERY = 0x51
         PACKET_AUTH_REQUEST = 0x52
         PACKET_ROW_DESCRIPTION = 0x54
