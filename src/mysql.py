@@ -36,7 +36,7 @@ class Mysql:
         logger.debug(f"payload_length = {payload_length}")
         """
         packet_type = self.get_packet_type(packet_number, payload_length, payload, connection_state)
-        logger.debug(f"packet_type = {packet_type}")
+
         return packet_type, payload_length
 
 
@@ -95,7 +95,7 @@ class Mysql:
             return Mysql.PacketType.PACKET_CACHING_SHA2
         elif packet_number == 3 and payload_length == 1 and payload[0] == 2:
             return Mysql.PacketType.PACKET_REQUEST_PUBLIC_KEY
-        elif packet_number == 4 and payload[1:26] == b"-----BEGIN PUBLIC KEY-----":
+        elif packet_number == 4 and payload[1:27] == b"-----BEGIN PUBLIC KEY-----":
             return Mysql.PacketType.PACKET_PUBLIC_KEY
         elif packet_number == 5 and payload_length == 256:
             return Mysql.PacketType.PACKET_CACHING_SHA2_RESPONSE
@@ -187,8 +187,6 @@ class Mysql:
 
 
     def parse_HANDSHAKE_RESPONSE(self, payload):
-        logger.debug("inside parse_HANDSHAKE_RESPONSE")
-
         client_capabilities = int.from_bytes(payload[0:2], "little")
         extended_client_capabilities = int.from_bytes(payload[2:4], "little")
 
@@ -199,18 +197,15 @@ class Mysql:
 
         idx = payload.find(0, 32)
         username = payload[32:idx].decode()
-        logger.debug(f"username: {username}")
 
         password_length = payload[idx+1]
         idx += 2
         password = payload[idx:idx+password_length]
-        logger.debug(f"password: {password.hex()}")
 
         idx += password_length
         idx2 = payload.find(0, idx)
 
         schema = payload[idx:idx2].decode()
-        logger.debug(f"schema: {schema}")
 
         self.result.connection = {'username': username, 'schema': schema, 'password': password.hex()}
 
@@ -455,7 +450,7 @@ class Mysql:
             field["decimals"] = decimals
 
             fields.append(field)
-            logger.debug(f"Field: {field['name']} type={field_type}")
+            #logger.debug(f"Field: {field['name']} type={field_type}")
 
         return fields, idx
 

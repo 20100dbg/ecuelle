@@ -1,6 +1,18 @@
 const { createApp } = Vue
 const socket = io();
 
+
+function build_query(query, params) {
+    let i = 0;
+
+    if (query.includes("$1")) {
+      return query.replace(/\$(\d+)/g, (_, n) => `'${params[n - 1]}'`);
+    }
+
+    return query.replace(/\?/g, () => `'${params[i++]}'`);
+}
+
+
 createApp({
     data: () => ({
       connection: {},
@@ -14,6 +26,7 @@ createApp({
       dbName: '',
       dbms: '',
       dbVersion: '',
+      appError: '',
     }),
 
     computed: {
@@ -61,6 +74,14 @@ createApp({
       });
 
       socket.on("parameters", (msg) => {
+        this._queries[this.queries.length-1]['parameters'] = msg.parameters;
+
+        query = this._queries[this._queries.length-1]['cmd'];
+        query = build_query(query, msg.parameters);
+        this._queries[this._queries.length-1]['cmd'] = query;
+
+        prettyQuery = window.highlight(query, { html: true });
+        this._queries[this._queries.length-1]['cmdHighlight'] = prettyQuery;
       });
 
       socket.on("results", (msg) => {
@@ -72,7 +93,7 @@ createApp({
       });
 
       socket.on("parse_error", (msg) => {
-        this._queries[this._queries.length-1]['parse_error'] = msg.parse_error;
+        this.appError = msg.parse_error;
       });
     },
 

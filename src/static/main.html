@@ -27,6 +27,7 @@
                   <a class="button is-primary" @click="toggleOrder">Reverse order</a>
                   <input v-model="filterQuery" class="input is-normal" placeholder="filter">
                   {{dbUsername}}@{{dbName}} {{dbms}}:{{dbVersion}}
+                  <p>{{appError}}</p>
                 </div>
               </div>
             </div>
@@ -57,6 +58,7 @@
                             <code v-html="query.cmdHighlight"></code>
                             <p class="error" v-if="query.error">{{query.error.message}}</p>
                             <p class="error" v-if="query.parse_error">Error while parsing results ({{query.parse_error}})</p>
+                            <!--p v-if="query.parameters">{{query.parameters}}</p-->
 
                             <!-- results -->
                             <details v-if="query.result.nb_rows > -1">

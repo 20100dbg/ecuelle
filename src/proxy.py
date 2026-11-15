@@ -63,7 +63,7 @@ class Proxy:
 
     def send_message(self, res):
         if res.connection:
-            logger.debug(f"emit {res.connection}")
+            #logger.debug(f"emit {res.connection}")
             socketio.emit('connection', {'timestamp': time.time(), 'dbms': self.dbms, 'connection': res.connection})
 
         if res.query:
