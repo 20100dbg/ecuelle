@@ -73,6 +73,11 @@ You can run an automated test client that will execute a few SQL queries
 docker compose run --name ecuelle-test --rm test
 ```
 
+Run all the test queries
+```
+docker compose run --name ecuelle-test --rm test all
+```
+
 Run fixtures before testing SQL queries
 ```
 SQL_SCRIPTS_DIR=./tests/fixtures/<DBMS> docker compose run --name ecuelle-test --rm test
@@ -80,7 +85,7 @@ SQL_SCRIPTS_DIR=./tests/fixtures/<DBMS> docker compose run --name ecuelle-test -
 
 Start a shell into test environment. This gives access to every DBMS clients, test scripts and fixtures
 ```
-docker compose run --name ecuelle-test --rm test bash
+docker compose run --name ecuelle-test --rm --entrypoint bash test
 ```
 
 ### Dependancies

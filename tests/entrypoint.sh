@@ -27,10 +27,11 @@ if [ -n "$SQL_SCRIPTS_DIR" ] && [ -d "$SQL_SCRIPTS_DIR" ]; then
     done
 fi
 
+
 cd /app
 . .venv/bin/activate
-python3 client.py
+python3 client.py $1
 
-#php client.php
+#php client.php $1
 
 #sh client.sh

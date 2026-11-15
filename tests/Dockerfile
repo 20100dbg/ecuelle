@@ -3,7 +3,7 @@ FROM debian:13.6-slim
 RUN apt update && \
     apt install bash curl nano gpg build-essential pkg-config \
     python3 python3-pip python3-venv python3-dev \
-    php php-mysql \
+    php php-mysql php-pgsql \
     mariadb-client-compat postgresql-client default-libmysqlclient-dev freetds-bin \
     -y --allow-unauthenticated --no-install-recommends && \
 #
@@ -16,6 +16,16 @@ RUN apt update && \
     -y --allow-unauthenticated --no-install-recommends && \
 #
     echo 'export PATH="$PATH:/opt/mssql-tools18/bin"' >> ~/.bashrc
+
+
+RUN pie_tmp=$(mktemp -d) && \
+    curl -fL --output "$pie_tmp/pie.phar" https://github.com/php/pie/releases/latest/download/pie.phar && \
+    install -m 755 "$pie_tmp/pie.phar" /usr/local/bin/pie && \
+    rm "$pie_tmp/pie.phar" && \
+    rmdir "$pie_tmp" && \
+    pie install microsoft/sqlsrv --auto-install-build-tools && \
+    pie install microsoft/pdo_sqlsrv && \
+    phpenmod pdo_pgsql
 
 RUN mkdir -p /app/sql
 WORKDIR /app
@@ -31,4 +41,4 @@ RUN chmod +x /app/entrypoint.sh
 
 COPY tests/src/ .
 
-CMD ["/app/entrypoint.sh"]
+ENTRYPOINT ["/app/entrypoint.sh"]
