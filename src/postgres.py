@@ -68,36 +68,60 @@ class Postgres:
 
 
     def parse_PARSE(self, pkt):
-        payload_length = int.from_bytes(pkt[0:4], "big")
+        idx = 0
+        type = pkt[idx]
+        length = int.from_bytes(pkt[idx+1:idx+5], "big")
+        idx += 5
 
-        idx = 6
+        idx2 = pkt.find(0, idx)
+        statement = pkt[idx:idx2].decode()
+        logger.debug(f"statement {statement}")
+
+        idx = idx2 + 1
         idx2 = pkt.find(0, idx)
         query = pkt[idx:idx2].decode()
+        logger.debug(f"query {query}")
         idx = idx2 + 1
+
+        self.result.query = query
 
         nb_parameters = int.from_bytes(pkt[idx:idx+2], "big")
         idx += 2
+        logger.debug(f"nb_parameters {nb_parameters}")
+
+        if nb_parameters == 0:
+            return None
 
         for _ in range(nb_parameters):
             parameter_type = int.from_bytes(pkt[idx:idx+4], "big")
+            logger.debug(f"parameter_type {parameter_type}")
             idx += 4
 
         type = pkt[idx]
         idx += 1
+        logger.debug(f"type {hex(type)}")
+
+        if type == 0x53:
+            logger.debug(f"type 0x53, byyyye")
+            return
 
         length = int.from_bytes(pkt[idx:idx+4], "big")
         idx += 4
+        logger.debug(f"length {length}")
 
         idx2 = pkt.find(0, idx) + 1
         portal = pkt[idx:idx2]
         idx = idx2
+        logger.debug(f"portal {portal}")
 
         idx2 = pkt.find(0, idx) + 1
         statement = pkt[idx:idx2]
         idx = idx2
+        logger.debug(f"statement {statement}")
 
         nb_parameter_formats = int.from_bytes(pkt[idx:idx+2], "big")
         idx += 2
+        logger.debug(f"nb_parameter_formats {nb_parameter_formats}")
 
         parameters_values = []
         parameters_formats = []
@@ -105,14 +129,17 @@ class Postgres:
         for _ in range(nb_parameter_formats):
             parameter_format = int.from_bytes(pkt[idx:idx+2], "big")
             parameters_formats.append(parameter_format)
+            logger.debug(f"parameter_format {parameter_format}")
             idx += 2
 
         nb_parameter_values = int.from_bytes(pkt[idx:idx+2], "big")
         idx += 2
+        logger.debug(f"nb_parameter_values {nb_parameter_values}")
 
         for i in range(nb_parameter_values):
             column_length = int.from_bytes(pkt[idx:idx+4], "big")
             idx += 4
+            logger.debug(f"column_length {column_length}")
 
             if parameters_formats[i] == 0: # text
                 parameter_value = pkt[idx:idx+column_length].decode()
@@ -122,61 +149,76 @@ class Postgres:
 
             idx += column_length
             parameters_values.append(parameter_value)
+            logger.debug(f"parameter_value {parameter_value}")
 
 
-        self.result.query = query
         self.result.parameters = parameters_values
 
 
     def parse_PARSE_COMPLETION(self, pkt):
-        idx = 10
-        type = pkt[idx] #0x54 == row description
-        idx += 1 + 4 # length
-
-        field_names = []
-
-        field_count = int.from_bytes(pkt[idx:idx+2], "big")
-        idx += 2
-
-        for _ in range(field_count):
-            idx2 = pkt.find(0, idx)
-            column_name = pkt[idx:idx2].decode()
-
-            idx = idx2 + 1
-            idx += 4 #oid_table
-            idx += 2 #column_index
-            oid_type = pkt[idx:idx+4]
-            idx += 4 #oid_type
-            idx += 2 #column_length
-            idx += 4 #type_modifier
-
-            format = pkt[idx:idx+2]
-            idx += 2 #format
-
-            field_names.append({'name': column_name, 'type': oid_type})
-
-        rows = []
+        idx = 0
 
         while True:
-            type = pkt[idx] #0x44 == data row
-            row = []
+            type = pkt[idx]
+            logger.debug(f"type {hex(type)}")
+            length = int.from_bytes(pkt[idx+1:idx+5], "big")
+            logger.debug(f"length {length}")
+            idx += 5
 
-            if type == 0x44:
-                idx += 1 + 4 # length
-                idx += 2 # field count
+            if type == 0x5a: #ready for query
+                return
+            elif type == 0x31: #parse completion
+                continue
+            elif type == 0x32: #bind completion
+                continue
 
-                for _ in range(field_count):
-                    column_length = int.from_bytes(pkt[idx:idx+4], "big")
-                    idx += 4
-                    column_value = pkt[idx:idx+column_length].decode()
-                    idx += column_length
+            idx += 5
+            field_names = []
 
-                    row.append(column_value)
+            field_count = int.from_bytes(pkt[idx:idx+2], "big")
+            idx += 2
 
-                rows.append(row)
+            for _ in range(field_count):
+                idx2 = pkt.find(0, idx)
+                column_name = pkt[idx:idx2].decode()
 
-            else:
-                break
+                idx = idx2 + 1
+                idx += 4 #oid_table
+                idx += 2 #column_index
+                oid_type = pkt[idx:idx+4]
+                idx += 4 #oid_type
+                idx += 2 #column_length
+                idx += 4 #type_modifier
+
+                format = pkt[idx:idx+2]
+                idx += 2 #format
+
+                field_names.append({'name': column_name, 'type': oid_type})
+
+            rows = []
+
+            while True:
+                type = pkt[idx] #0x44 == data row
+                row = []
+
+                if type == 0x44:
+                    idx += 1 + 4 # length
+                    idx += 2 # field count
+
+                    for _ in range(field_count):
+                        column_length = int.from_bytes(pkt[idx:idx+4], "big")
+                        idx += 4
+                        column_value = pkt[idx:idx+column_length].decode()
+                        idx += column_length
+
+                        row.append(column_value)
+
+                    rows.append(row)
+
+                else:
+                    break
+
+            break
 
         self.result.cols = field_names
         self.result.rows = rows
@@ -303,6 +345,9 @@ class Postgres:
         PACKET_SSL_RESPONSE = 0x01
         PACKET_STARTUP = 0x02
         PACKET_PARSE_COMPLETION = 0x31
+        PACKET_BIND_COMPLETION = 0x32
+        PACKET_CLOSE_COMPLETION = 0x33
+        PACKET_BIND = 0x42
         PACKET_COMPLETION = 0x43
         PACKET_DATA_ROW = 0x44
         PACKET_ERROR = 0x45
