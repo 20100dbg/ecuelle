@@ -1,0 +1,45 @@
+{
+    "basic": [
+        {
+            "query": "SELECT * FROM users;",
+            "params": []
+        },
+        {
+            "query": "SELECT * FROM data;",
+            "params": []
+        }
+    ],
+
+    "invalid": [
+        {
+            "query": "SELECT * FROM NOT_A_TABLE;",
+            "params": []
+        }
+    ],
+
+    "edge_cases": [
+        {
+            "query": "SELECT '',0,null, false;",
+            "params": []
+        },
+        {
+            "query": "SELECT * FROM users WHERE id = 9999;",
+            "params": []
+        },
+        {
+            "query": "SELECT * FROM users WHERE id = 1; SELECT * FROM users WHERE id = 2;",
+            "params": []
+        }
+    ],
+
+    "parameterized": [
+        {
+            "query": "SELECT id, name, password FROM users WHERE id IN (?,?) or name=?",
+            "params": [1, 2, "salut"]
+        },
+        {
+            "query": "SELECT id, name, password FROM users WHERE id=:id",
+            "params": {"id": 1}
+        }
+    ]
+}

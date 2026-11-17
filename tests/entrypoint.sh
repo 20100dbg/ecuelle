@@ -3,6 +3,13 @@
 #Make sure to use up-to-date $PATH
 . ~/.bashrc
 
+if [ -n "$1" ] && [ "$1" = "-h" ]; then
+    echo "Usage :"
+    echo "docker compose run --name ecuelle-test --rm test [query types] [script]"
+    echo "docker compose run --name ecuelle-test --rm test basic,invalid,edge_cases,parameterized sh|php|pdo|python"
+    exit 0;
+fi
+
 if [ -n "$SQL_SCRIPTS_DIR" ] && [ -d "$SQL_SCRIPTS_DIR" ]; then
 
     if [ ${DB_TYPE} = "mssql" ] && [ -n ${DB_NAME} ]; then
@@ -30,8 +37,43 @@ fi
 
 cd /app
 . .venv/bin/activate
-python3 client.py $1
 
-#php client.php $1
+case "$2" in
+    sh)
+        echo '--- Bash script start'
+        bash client.sh
+        echo '--- Bash script done'
+        ;;
+    php)
+        echo '--- PHP script start'
+        php client.php $1
+        echo '--- PHP script done'
+        ;;
+    pdo)
+        echo '--- PDO script start'
+        php client_pdo.php $1
+        echo '--- PDO script done'
+        ;;
+    python)
+        echo '--- Python script start'
+        python3 client.py $1
+        echo '--- Python script done'
+        ;;
+    "")
+        echo '--- PHP script start'
+        php client.php $1
+        echo '--- PHP script done'
 
-#sh client.sh
+        echo '--- PDO script start'
+        php client_pdo.php $1
+        echo '--- PDO script done'
+
+        echo '--- Python script start'
+        python3 client.py $1
+        echo '--- Python script done'
+        ;;
+    *)
+        echo "Usage: $0 [sh|php|pdo|python]"
+        exit 1
+        ;;
+esac

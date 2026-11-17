@@ -1,14 +1,4 @@
 <?php
-/*
-$stmt = $db->prepare($query);
-if ($parameters) {
-    $types = str_repeat("s", count($parameters));
-    $stmt->bind_param($types, ...$parameters);
-}
-$stmt->execute();
-$result = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
-var_dump($result);
-*/
 
 function oldschool_mysql_query($config, $query, $parameters=null)
 {
@@ -85,18 +75,6 @@ function pdo_query($config, $query, $parameters = null)
         $dsn = $driver . ":host=" . $config["host"] . ";dbname=" . $config["database"] . ";port=". $config["port"];
         $pdo = new PDO($dsn, $config["user"], $config["password"], $options);
 
-        /*
-        $stmt = $pdo->prepare($query);
-        if ($parameters) {
-            for ($i = 0; $i < count($parameters); $i++) {
-                $stmt->bindValue($i + 1, $parameters[$i], PDO::PARAM_STR);
-            }
-        }
-        $stmt->execute();
-        $result1 = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        var_dump($result1);
-        */
-
         if ($parameters)
         {
             $stmt = $pdo->prepare($query);
@@ -151,59 +129,47 @@ $config = [
 ];
 
 
-echo '--- PHP script start' . PHP_EOL;
-
 if ($debug) {
     var_dump($config);
 }
 
-$basic_queries = [
-    ["SELECT * FROM users;", null],
-];
+$json = file_get_contents('queries.json');
+$all_queries = json_decode($json, true);
+$queries = [];
+$queries_type = [];
 
-$extended_queries = [
-    ["SELECT * FROM data;", null],
-    ["SELECT * FROM NOT_A_TABLE;", null],
-    ["SELECT '',0,null", null],
-    ["SELECT * FROM users WHERE id = 9999;", null],
-    ["SELECT id, name, password FROM users WHERE id IN (?,?) or name=?", array(1,2,"salut")],
-    ["SELECT id, name, password FROM users WHERE id=:id", array('id'=> 2)],
-];
-
-$queries = $basic_queries;
-
-if ($argc == 2 && ($argv[1] == "all" || $argv[1] == "--all")) {
-    $queries = array_merge($basic_queries, $extended_queries);
+if ($argc == 2) {
+    $queries_type = explode(',', $argv[1]);
 }
 
+foreach ($all_queries as $query_type=>$queries_arr) {
+    if (count($queries_type) == 0 || in_array($query_type, $queries_type)) {
+        $queries = array_merge($queries, $queries_arr);
+    }
+}
 
 for ($i=0; $i < count($queries); $i++) {
 
     //old school query doesn't support named parameters
     //so we check if the parameter array is sequential and not associative
 
-    if ($queries[$i][1] == null || isset($queries[$i][1][0])) {
+    if (count($queries[$i]["params"]) == 0 || isset($queries[$i]["params"][0])) {
 
         if ($config['dbms'] == 'mysql') {
-            $result = oldschool_mysql_query($config, $queries[$i][0], $queries[$i][1]);
+            $result = oldschool_mysql_query($config, $queries[$i]["query"], $queries[$i]["params"]);
         }
         else if ($config['dbms'] == 'postgres') {
-            $query = replace_placeholder($queries[$i][0]);
-            $result = oldschool_postgres_query($config, $query, $queries[$i][1]);
+            $query = replace_placeholder($queries[$i]["query"]);
+            $result = oldschool_postgres_query($config, $query, $queries[$i]["params"]);
         }
         else if ($config['dbms'] == 'mssql') {
-            $result = oldschool_mssql_query($config, $queries[$i][0], $queries[$i][1]);
+            $result = oldschool_mssql_query($config, $queries[$i]["query"], $queries[$i]["params"]);
         }
-        echo '> '. $queries[$i][0] . PHP_EOL;
-        echo '<';
-        print_var($result);
-    } 
 
-    $result = pdo_query($config, $queries[$i][0], $queries[$i][1]);
-    echo '> '. $queries[$i][0] . PHP_EOL;
-    echo '< ';
+    }
+
+    echo '> '. $queries[$i]["query"] . PHP_EOL;
+    echo '<';
     print_var($result);
     echo PHP_EOL;
 }
-
-echo '--- PHP script done' . PHP_EOL;

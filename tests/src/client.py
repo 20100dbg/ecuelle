@@ -1,5 +1,7 @@
+import json
 import logging.config
 import os
+import re
 import sys
 
 import mssql_python
@@ -79,38 +81,43 @@ config = {
     "port": int(os.getenv('PROXY_PORT')),
 }
 
-print("--- Python script start")
-
 if debug:
     print(f"config {config}")
 
-basic_queries = [
-    ["SELECT * FROM users;", []],
-]
-
-extended_queries = [
-    ["SELECT * FROM data;", []],
-    ["SELECT * FROM NOT_A_TABLE;", []],
-    ["SELECT '',0,null", []],
-    ["SELECT * FROM users WHERE id = 9999;", []],
+"""
     ["SELECT id, name, password FROM users WHERE id IN (%s, %s) or name=%s", [1,2,"salut"]],
     ["SELECT id, name, password FROM users WHERE id=%(id)s", {'id': 2}],
-]
+"""
 
-queries = basic_queries
+with open("queries.json", "r", encoding="utf-8") as f:
+    all_queries = json.load(f)
 
-if len(sys.argv) == 2 and (sys.argv[1] == "all" or sys.argv[1] == "--all"):
-    queries = basic_queries + extended_queries
+queries = []
+queries_type = []
+
+if len(sys.argv) == 2:
+    queries_type = sys.argv[1].split(",")
+
+print(f"sys.argv {sys.argv}")
+print(f"queries_type {queries_type}")
+
+for query_type, queries_arr in all_queries.items():
 
 
-for query, parameters in queries:
-    if config['dbms'] in ["mysql", "mariadb"]: res = mysql_query(config, query, parameters)
-    elif config['dbms'] == "postgres": res = postgres_query(config, query, parameters)
-    elif config['dbms'] == "mssql": res = mssql_query(config, query, parameters)
+    print(f"query_type {query_type}")
+    print(f"queries_arr {queries_arr}")
+
+    if not queries_type or query_type in queries_type:
+        queries.extend(queries_arr)
+
+print(queries)
+
+for query in queries:
+    if config['dbms'] in ["mysql", "mariadb"]: res = mysql_query(config, query['query'], query['params'])
+    elif config['dbms'] == "postgres": res = postgres_query(config, query['query'], query['params'])
+    elif config['dbms'] == "mssql": res = mssql_query(config, query['query'], query['params'])
     
     #if debug:
-    print(f"> {query}")
+    print(f"> {query['query']}")
     print(f"< {res}")
     print()
-
-print("--- Python script done\n")
